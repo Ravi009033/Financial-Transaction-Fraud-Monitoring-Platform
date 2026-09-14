@@ -1,4 +1,9 @@
 from fastapi import FastAPI
+# Import all models so SQLAlchemy registers all tables
+from app.models.user import User
+from app.models.account import Account
+from app.models.transaction import Transaction
+
 from app.api.transactions import router as transaction_router
 
 app = FastAPI(

@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from app.services.transaction_service import TransactionService
 from app.schemas.transaction import TransactionCreate
 from app.db.dependencies import get_db
+from app.repositories.transaction_repository import TransactionRepository  
 
 router = APIRouter(
     prefix="/transactions",
@@ -17,10 +18,7 @@ def get_transactions():
 
 @router.post("/")
 def add_transaction(transaction: TransactionCreate, db: Session=Depends(get_db)):
-    transaction_service = TransactionService(
-        transaction.amount, 
-        transaction.merchant,
-        transaction.location,
-        transaction.transaction_type
-        )
-    return transaction_service.create_transaction()
+    repository = TransactionRepository(db)
+    service = TransactionService(repository)
+
+    return service.create_transaction(transaction)

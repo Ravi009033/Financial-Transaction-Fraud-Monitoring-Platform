@@ -1,14 +1,9 @@
-class TransactionService:
-    def __init__(self, amount, merchant, location, transaction_type):
-        self.amount = amount
-        self.merchant = merchant
-        self.location = location
-        self.transaction_type = transaction_type
+from app.repositories.transaction_repository import TransactionRepository
+from app.schemas.transaction import TransactionCreate
 
-    def create_transaction(self):
-        return {
-            "amount": self.amount,
-            "merchant": self.merchant,
-            "location": self.location,
-            "transaction_type": self.transaction_type
-        }
+class TransactionService:
+    def __init__(self, repository: TransactionRepository):
+        self.repository = repository
+
+    def create_transaction(self, transaction: TransactionCreate):
+        return self.repository.create(transaction)

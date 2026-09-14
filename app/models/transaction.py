@@ -40,6 +40,7 @@ class Transaction(Base):
     )
     status: Mapped[TransactionStatus] = mapped_column(
         SQLEnum(TransactionStatus), 
+        default=TransactionStatus.PENDING,
         nullable=False
     )
     fraud_score: Mapped[Decimal | None] = mapped_column(Numeric(precision=5, scale=4), nullable=True) 
