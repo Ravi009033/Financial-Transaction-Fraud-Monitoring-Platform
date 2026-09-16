@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from app.models.transaction import Transaction
-from app.schemas.transaction import TransactionCreate
+from app.schemas.transaction import TransactionCreate, TransactionUpdate
+from uuid import UUID
 
 class TransactionRepository:
     def __init__(self, db: Session):
@@ -19,11 +20,44 @@ class TransactionRepository:
         self.db.refresh(db_tx)
         return db_tx
 
-    def get_by_id(self):
-        pass
     def get_all(self):
-        pass
-    def update(self):
-        pass
-    def delete(self):
-        pass
+            return self.db.query(Transaction).all()
+
+    def get_by_id(self, transaction_id: UUID):
+        return (
+            self.db.query(Transaction)
+            .filter(Transaction.id == transaction_id)
+            .first()
+        )
+
+    def get_by_account(self, account_id: UUID):
+        return (
+            self.db.query(Transaction)
+            .filter(Transaction.account_id == account_id)
+            .all()
+        )
+    
+    def update(self, transaction_id, transaction: TransactionUpdate):
+        db_transaction = self.get_by_id(transaction_id)
+
+        if db_transaction is None:
+            return None
+
+        db_transaction.merchant = transaction.merchant
+        db_transaction.location = transaction.location
+
+        self.db.commit()
+        self.db.refresh(db_transaction)
+
+        return db_transaction
+    
+    def delete(self, transaction_id):
+        db_transaction = self.get_by_id(transaction_id)
+
+        if db_transaction is None:
+            return None
+
+        self.db.delete(db_transaction)
+        self.db.commit()
+
+        return db_transaction
