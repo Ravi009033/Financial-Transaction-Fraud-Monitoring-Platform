@@ -1,0 +1,5 @@
+
+
+
+class DuplicateAccountError(Exception):
+    pass

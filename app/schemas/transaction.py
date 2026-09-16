@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
 from decimal import Decimal
 from enum import Enum
-from uuid import uuid4, UUID
+from uuid import UUID
 
 class TransactionType(str, Enum):
     ONLINE = "online"

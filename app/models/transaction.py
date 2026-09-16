@@ -25,8 +25,8 @@ class Transaction(Base):
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
     account_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), ForeignKey("accounts.id"), nullable=False) 
     amount: Mapped[Decimal] = mapped_column(Numeric(precision=12, scale=2), nullable=False)
-    merchant: Mapped[str] = mapped_column(String(50), nullable=False) 
-    location: Mapped[str] = mapped_column(String(50), nullable=False) 
+    merchant: Mapped[str] = mapped_column(String(100), nullable=False) 
+    location: Mapped[str] = mapped_column(String(100), nullable=False) 
     # Restricts database values to the TransactionType choices
     transaction_type: Mapped[TransactionType] = mapped_column(
         SQLEnum(TransactionType), 
