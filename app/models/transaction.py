@@ -3,11 +3,14 @@ from enum import Enum
 from uuid import uuid4,UUID
 from sqlalchemy import ForeignKey, String, Numeric, DateTime
 from sqlalchemy import Enum as SQLEnum
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from decimal import Decimal
 from app.db.database import Base
+from typing import TYPE_CHECKING
 
+if TYPE_CHECKING:
+    from app.models.account import Account
 
 class TransactionType(str, Enum):
     ONLINE = "online"
@@ -50,3 +53,8 @@ class Transaction(Base):
             default=lambda: datetime.now(timezone.utc),
             nullable=False
         )
+
+    account: Mapped["Account"] = relationship(
+                                "Account",
+                                back_populates="transactions"
+                            )

@@ -1,11 +1,15 @@
 from datetime import datetime, timezone
 from uuid import uuid4,UUID
 from sqlalchemy import ForeignKey, Numeric, DateTime, String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from decimal import Decimal
 from app.db.database import Base
+from typing import TYPE_CHECKING
 
+if TYPE_CHECKING:
+    from app.models.user import User
+    from app.models.transaction import Transaction
 
 class Account(Base):
     __tablename__ = "accounts"
@@ -20,3 +24,8 @@ class Account(Base):
             default=lambda: datetime.now(timezone.utc),
             nullable=False
         )
+    user: Mapped["User"] = relationship("User", back_populates="accounts")
+    transactions: Mapped[list["Transaction"]] = relationship(
+                                    "Transaction",
+                                    back_populates="account"
+                                )

@@ -4,8 +4,10 @@ from sqlalchemy import String, DateTime
 from sqlalchemy.orm import mapped_column, Mapped, relationship
 from app.db.database import Base
 from uuid import uuid4,UUID
+from typing import TYPE_CHECKING
 
-from app.models.account import Account
+if TYPE_CHECKING:
+    from app.models.account import Account
 
 class User(Base):
     __tablename__ = "users"
