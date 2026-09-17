@@ -1,12 +1,18 @@
 from app.repositories.transaction_repository import TransactionRepository
 from app.schemas.transaction import TransactionCreate, TransactionUpdate
 from app.repositories.account_repository import AccountRepository
+from app.services.fraud_service import FraudDetectionService
 from uuid import UUID
+from app.exceptions import InsufficientBalanceError, TransactionAlreadyProcessedError
+from app.models.transaction import TransactionStatus
 
 class TransactionService:
-    def __init__(self, repository: TransactionRepository, account_repository: AccountRepository):
+    def __init__(self, repository: TransactionRepository, 
+                 account_repository: AccountRepository,
+                 fraud_service: FraudDetectionService):
         self.repository = repository
         self.account_repository = account_repository
+        self.fraud_service = fraud_service
 
     def create_transaction(self, transaction: TransactionCreate):
         account = self.account_repository.get_by_id(
@@ -15,7 +21,33 @@ class TransactionService:
 
         if account is None:
             return None
-        return self.repository.create(transaction)
+        
+        if transaction.amount > account.balance:
+            raise InsufficientBalanceError(
+            "Insufficient account balance"
+            )
+        
+        fraud_result = self.fraud_service.evaluate_transaction(
+            transaction.amount,
+            transaction.transaction_type
+        )
+        fraud_decision = fraud_result["fraud_decision"]
+        
+
+        if fraud_decision == "approved":
+            status = TransactionStatus.APPROVED
+            # Deduct money only when transaction is approved
+            account.balance -= transaction.amount
+
+        elif fraud_decision == "review":
+            status = TransactionStatus.REVIEW
+        elif fraud_decision == "blocked":
+            status = TransactionStatus.BLOCKED
+        else:
+            status = TransactionStatus.PENDING
+
+        
+        return self.repository.create(transaction, fraud_result, status)
 
     def get_all_transactions(self):
         return self.repository.get_all()
@@ -26,8 +58,21 @@ class TransactionService:
     def get_transactions_by_account(self, account_id: UUID):
         return self.repository.get_by_account(account_id)
 
-    def update_transaction(self, transaction_id, transaction: TransactionUpdate):
-        return self.repository.update(transaction_id, transaction)
+    def update_transaction(self, transaction_id: UUID, transaction: TransactionUpdate):
+        db_transaction = self.repository.get_by_id(transaction_id)
+
+        if db_transaction is None:
+            return None
+
+        if db_transaction.status != TransactionStatus.PENDING:
+            raise TransactionAlreadyProcessedError(
+                "Processed transactions cannot be modified"
+            )
+
+        return self.repository.update(
+            transaction_id,
+            transaction
+        )
 
     def delete_transaction(self, transaction_id):
         return self.repository.delete(transaction_id)

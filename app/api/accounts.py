@@ -45,7 +45,8 @@ def get_accounts(
     db: Session = Depends(get_db)
 ):
     repository = AccountRepository(db)
-    service = AccountService(repository)
+    user_repository = UserRepository(db)
+    service = AccountService(repository, user_repository)
 
     return service.get_all_accounts()
 
@@ -55,8 +56,8 @@ def get_account(
     db: Session = Depends(get_db)
 ):
     repository = AccountRepository(db)
-    service = AccountService(repository)
-
+    user_repository = UserRepository(db)
+    service = AccountService(repository, user_repository)
     account = service.get_account(account_id)
 
     if account is None:
@@ -74,7 +75,8 @@ def update_account(
     db: Session = Depends(get_db)
 ):
     repository = AccountRepository(db)
-    service = AccountService(repository)
+    user_repository = UserRepository(db)
+    service = AccountService(repository, user_repository)
 
     try:
         updated_account = service.update_account(
@@ -102,7 +104,8 @@ def delete_account(
     db: Session = Depends(get_db)
 ):
     repository = AccountRepository(db)
-    service = AccountService(repository)
+    user_repository = UserRepository(db)
+    service = AccountService(repository, user_repository)
 
     deleted_account = service.delete_account(account_id)
 

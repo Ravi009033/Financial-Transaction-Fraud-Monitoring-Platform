@@ -1,9 +1,11 @@
 from datetime import datetime, timezone
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy import String, DateTime
-from sqlalchemy.orm import mapped_column, Mapped
+from sqlalchemy.orm import mapped_column, Mapped, relationship
 from app.db.database import Base
 from uuid import uuid4,UUID
+
+from app.models.account import Account
 
 class User(Base):
     __tablename__ = "users"
@@ -19,3 +21,4 @@ class User(Base):
                 default=lambda: datetime.now(timezone.utc),
                 nullable=False
             )
+    accounts: Mapped[list["Account"]] = relationship("Account", back_populates="user")

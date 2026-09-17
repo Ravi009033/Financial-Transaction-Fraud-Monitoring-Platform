@@ -7,18 +7,25 @@ class TransactionRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def create(self, transaction: TransactionCreate):
+    def create(self, transaction: TransactionCreate, fraud_result, status):
         db_tx = Transaction(
         account_id=transaction.account_id,
         amount=transaction.amount,
         merchant = transaction.merchant,
         location = transaction.location,
-        transaction_type=transaction.transaction_type
+        transaction_type=transaction.transaction_type,
+        fraud_score=fraud_result["fraud_score"],
+        fraud_decision=fraud_result["fraud_decision"],
+        status=status
     )
-        self.db.add(db_tx)
-        self.db.commit()
-        self.db.refresh(db_tx)
-        return db_tx
+        try:
+            self.db.add(db_tx)
+            self.db.commit()
+            self.db.refresh(db_tx)
+            return db_tx
+        except Exception:
+            self.db.rollback()
+            raise
 
     def get_all(self):
             return self.db.query(Transaction).all()

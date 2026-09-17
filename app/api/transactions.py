@@ -3,9 +3,11 @@ from sqlalchemy.orm import Session
 from app.repositories.transaction_repository import TransactionRepository 
 from app.schemas.transaction import TransactionCreate, TransactionResponse, TransactionUpdate
 from app.services.transaction_service import TransactionService
+from app.services.fraud_service import FraudDetectionService
 from app.repositories.account_repository import AccountRepository
 from app.db.dependencies import get_db 
 from uuid import UUID
+from app.exceptions import InsufficientBalanceError, TransactionAlreadyProcessedError
 
 
 router = APIRouter(
@@ -20,13 +22,20 @@ def add_transaction(
 ):
     transaction_repository = TransactionRepository(db)
     account_repository = AccountRepository(db)
+    fraud_service = FraudDetectionService()
 
     service = TransactionService(
         transaction_repository,
-        account_repository
+        account_repository,
+        fraud_service
     )
-
-    result = service.create_transaction(transaction)
+    try:
+        result = service.create_transaction(transaction)
+    except InsufficientBalanceError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=str(e)
+        )
 
     if result is None:
         raise HTTPException(
@@ -42,10 +51,12 @@ def get_transactions(
 ):
     repository = TransactionRepository(db)
     account_repository = AccountRepository(db)
+    fraud_service = FraudDetectionService()
 
     service = TransactionService(
         repository,
-        account_repository
+        account_repository,
+        fraud_service
     )
 
     return service.get_all_transactions()
@@ -57,11 +68,13 @@ def get_transaction(
 ):
     repository = TransactionRepository(db)
     account_repository = AccountRepository(db)
-    
+    fraud_service = FraudDetectionService()
+
     service = TransactionService(
-            repository,
-            account_repository
-        )
+        repository,
+        account_repository,
+        fraud_service
+    )
 
     transaction = service.get_transaction(transaction_id)
 
@@ -80,10 +93,12 @@ def get_transactions_by_account(
 ):
     repository = TransactionRepository(db)
     account_repository = AccountRepository(db)
+    fraud_service = FraudDetectionService()
 
     service = TransactionService(
         repository,
-        account_repository
+        account_repository,
+        fraud_service
     )
 
     return service.get_transactions_by_account(account_id)
@@ -97,17 +112,24 @@ def update_transaction(
 ):
     repository = TransactionRepository(db)
     account_repository = AccountRepository(db)
+    fraud_service = FraudDetectionService()
 
     service = TransactionService(
         repository,
-        account_repository
+        account_repository,
+        fraud_service
     )
-
-    updated_transaction = service.update_transaction(
-        transaction_id,
-        transaction
-    )
-
+    try:
+        updated_transaction = service.update_transaction(
+            transaction_id,
+            transaction
+        )
+    except TransactionAlreadyProcessedError as e:
+        raise HTTPException(
+            status_code=409,
+            detail=str(e)
+        )
+    
     if updated_transaction is None:
         raise HTTPException(
             status_code=404,
@@ -124,10 +146,12 @@ def delete_transaction(
 ):
     repository = TransactionRepository(db)
     account_repository = AccountRepository(db)
+    fraud_service = FraudDetectionService()
 
     service = TransactionService(
         repository,
-        account_repository
+        account_repository,
+        fraud_service
     )
 
     deleted_transaction = service.delete_transaction(transaction_id)
