@@ -284,3 +284,4 @@ def test_delete_nonexistent_account():
     )
 
     assert response.status_code == 404
+
