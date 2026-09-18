@@ -1,6 +1,7 @@
 from app.repositories.user_repository import UserRepository
 from app.schemas.user import UserCreate, UserUpdate
 from uuid import UUID
+from app.security.password import hash_password
 
 class UserService:
     def __init__(self, repository: UserRepository):
@@ -8,7 +9,12 @@ class UserService:
 
     # CREATE
     def create_user(self, user: UserCreate):
-        return self.repository.create(user)
+        password_hash = hash_password(user.password)
+
+        return self.repository.create(
+            user,
+            password_hash
+        )
 
     # READ ALL
     def get_all_users(self):
@@ -25,3 +31,7 @@ class UserService:
     # DELETE
     def delete_user(self, user_id: UUID):
         return self.repository.delete(user_id)
+
+    # READ BY EMAIL
+    def get_user_by_email(self, email: str):
+        return self.repository.get_by_email(email)

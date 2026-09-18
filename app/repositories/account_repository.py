@@ -1,5 +1,5 @@
+from uuid import UUID
 from sqlalchemy.orm import Session
-
 from app.models.account import Account
 from app.schemas.account import AccountCreate, AccountUpdate
 from sqlalchemy.exc import IntegrityError
@@ -10,11 +10,11 @@ class AccountRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def create(self, account: AccountCreate):
+    def create(self, account: AccountCreate, user_id: UUID):
 
         db_account = Account(
             account_number=account.account_number,
-            user_id=account.user_id,
+            user_id=user_id,
             balance=account.balance
         )
 
@@ -74,3 +74,8 @@ class AccountRepository:
         self.db.commit()
 
         return db_account
+
+    def get_by_user_id(self, user_id: UUID):
+        return self.db.query(Account).filter(
+            Account.user_id == user_id
+        ).all() 

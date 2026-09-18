@@ -68,3 +68,10 @@ class TransactionRepository:
         self.db.commit()
 
         return db_transaction
+
+    def get_by_account_ids(self, account_ids: list[UUID]):
+        return (
+            self.db.query(Transaction)
+            .filter(Transaction.account_id.in_(account_ids))
+            .all()
+        )

@@ -8,12 +8,13 @@ class UserRepository:
         self.db = db
 
   # CREATE
-    def create(self, user: UserCreate):
+    def create(self, user: UserCreate, password_hash: str):
         db_user = User(
             name=user.name,
             email=user.email,
             phone=user.phone,
-            address=user.address
+            address=user.address,
+            password_hash=password_hash
         )
         self.db.add(db_user)
         self.db.commit()
@@ -59,3 +60,8 @@ class UserRepository:
         self.db.commit()
 
         return db_user
+
+    def get_by_email(self, email: str):
+        return self.db.query(User).filter(
+            User.email == email
+        ).first()

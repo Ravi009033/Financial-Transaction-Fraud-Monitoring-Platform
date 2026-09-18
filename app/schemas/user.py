@@ -9,6 +9,7 @@ class UserCreate(BaseModel):
     email: str = Field(min_length=5, max_length=50)
     phone: str = Field(min_length=10, max_length=15)
     address: str = Field(min_length=2, max_length=50)
+    password: str = Field(min_length=8, max_length=72)
 
 class UserUpdate(BaseModel):
     name: str = Field(min_length=2, max_length=50)

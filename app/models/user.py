@@ -24,3 +24,8 @@ class User(Base):
                 nullable=False
             )
     accounts: Mapped[list["Account"]] = relationship("Account", back_populates="user")
+
+    password_hash: Mapped[str] = mapped_column(
+                String(255),
+                nullable=False
+            )

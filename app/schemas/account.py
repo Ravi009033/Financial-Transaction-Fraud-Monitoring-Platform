@@ -11,8 +11,6 @@ class AccountCreate(BaseModel):
         max_length=50
     )
 
-    user_id: UUID
-
     balance: Decimal = Field(
         ge=0,
         max_digits=12,

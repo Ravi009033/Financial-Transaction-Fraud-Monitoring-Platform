@@ -5,6 +5,9 @@ from app.schemas.user import UserCreate, UserResponse, UserUpdate
 from app.db.dependencies import get_db
 from app.repositories.user_repository import UserRepository
 from uuid import UUID
+from app.security.dependencies import get_current_user
+from app.models.user import User
+
 
 router = APIRouter(
     prefix="/users",
@@ -13,7 +16,7 @@ router = APIRouter(
 
 # GET ALL USERS
 @router.get("/", response_model=list[UserResponse])
-def get_users(db: Session = Depends(get_db)):
+def get_users(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     repository = UserRepository(db)
     service = UserService(repository)
 
