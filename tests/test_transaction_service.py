@@ -17,6 +17,8 @@ def test_insufficient_balance():
 
     account = Mock()
     account.balance = Decimal("10000")
+    user_id = uuid4()
+    account.user_id = user_id
 
     account_repository.get_by_id.return_value = account
 
@@ -35,7 +37,7 @@ def test_insufficient_balance():
     )
 
     with pytest.raises(InsufficientBalanceError):
-        service.create_transaction(transaction)
+        service.create_transaction(transaction, user_id)
 
     transaction_repository.create.assert_not_called()
     fraud_service.evaluate_transaction.assert_not_called()
@@ -47,6 +49,8 @@ def test_approved_transaction():
 
     account = Mock()
     account.balance = Decimal("10000")
+    user_id = uuid4()
+    account.user_id = user_id
 
     account_repository.get_by_id.return_value = account
 
@@ -69,7 +73,7 @@ def test_approved_transaction():
         fraud_service
     )
 
-    service.create_transaction(transaction)
+    service.create_transaction(transaction,user_id)
 
     assert account.balance == Decimal("7000")
 
@@ -94,6 +98,8 @@ def test_review_transaction():
 
     account = Mock()
     account.balance = Decimal("100000")
+    user_id = uuid4()
+    account.user_id = user_id
 
     account_repository.get_by_id.return_value = account
 
@@ -116,7 +122,7 @@ def test_review_transaction():
         fraud_service
     )
 
-    service.create_transaction(transaction)
+    service.create_transaction(transaction, user_id)
 
     # Balance should NOT change for a review transaction
     assert account.balance == Decimal("100000")
@@ -137,7 +143,8 @@ def test_blocked_transaction():
 
     account = Mock()
     account.balance = Decimal("100000")
-
+    user_id = uuid4()
+    account.user_id = user_id
     account_repository.get_by_id.return_value = account
 
     fraud_service.evaluate_transaction.return_value = {
@@ -159,7 +166,7 @@ def test_blocked_transaction():
         fraud_service
     )
 
-    service.create_transaction(transaction)
+    service.create_transaction(transaction, user_id)
 
     # Blocked transactions must not deduct money
     assert account.balance == Decimal("100000")
@@ -179,6 +186,7 @@ def test_nonexistent_account():
     fraud_service = Mock()
 
     account_repository.get_by_id.return_value = None
+    user_id = uuid4()
 
     transaction = TransactionCreate(
         account_id=uuid4(),
@@ -194,7 +202,7 @@ def test_nonexistent_account():
         fraud_service
     )
 
-    result = service.create_transaction(transaction)
+    result = service.create_transaction(transaction, user_id)
 
     assert result is None
 

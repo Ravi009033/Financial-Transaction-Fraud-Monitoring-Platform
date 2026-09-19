@@ -1,33 +1,15 @@
-from fastapi.testclient import TestClient
-
-from app.main import app
-
-client = TestClient(app)
+import uuid
 
 
-def get_auth_headers():
-    response = client.post(
-        "/auth/login",
-        data={
-            "username": "testuser@example.com",
-            "password": "MySecurePassword123"
-        }
-    )
+# ============================================================
+# POST /transactions/
+# ============================================================
 
-    assert response.status_code == 200
-
-    token = response.json()["access_token"]
-
-    return {
-        "Authorization": f"Bearer {token}"
-    }
-
-
-def test_create_transaction_unauthorized():
+def test_create_transaction_unauthorized(client, test_account):
     response = client.post(
         "/transactions/",
         json={
-            "account_id": "77c23e50-cada-4637-9ad6-7c50dace0aa1",
+            "account_id": str(test_account.id),
             "amount": 1000,
             "merchant": "Paytm",
             "location": "Delhi",
@@ -38,143 +20,151 @@ def test_create_transaction_unauthorized():
     assert response.status_code == 401
 
 
-def test_create_transaction_authorized():
-    headers = get_auth_headers()
-
-    response = client.post(
+def test_create_transaction_authorized(auth_client, test_account):
+    response = auth_client.post(
         "/transactions/",
         json={
-            "account_id": "77c23e50-cada-4637-9ad6-7c50dace0aa1",
+            "account_id": str(test_account.id),
             "amount": 100,
             "merchant": "Paytm",
             "location": "Delhi",
             "transaction_type": "online"
-        },
-        headers=headers
+        }
     )
 
     assert response.status_code == 200
 
-def test_create_transaction_other_users_account():
-    headers = get_auth_headers()
+    data = response.json()
 
-    other_account_id = "e8655968-d32f-4ab7-8054-dee852963be4"
+    assert data["account_id"] == str(test_account.id)
+    assert data["status"] in ["approved", "review", "blocked"]
+    assert data["fraud_decision"] is not None
 
-    response = client.post(
+
+def test_create_transaction_other_users_account(
+    auth_client,
+    other_account
+):
+    response = auth_client.post(
         "/transactions/",
         json={
-            "account_id": other_account_id,
+            "account_id": str(other_account.id),
             "amount": 100,
             "merchant": "Paytm",
             "location": "Delhi",
             "transaction_type": "online"
-        },
-        headers=headers
+        }
     )
 
     assert response.status_code == 403
 
-def test_create_transaction_nonexistent_account():
-    headers = get_auth_headers()
 
-    account_id = "00000000-0000-0000-0000-000000000000"
+def test_create_transaction_nonexistent_account(auth_client):
+    account_id = uuid.uuid4()
 
-    response = client.post(
+    response = auth_client.post(
         "/transactions/",
         json={
-            "account_id": account_id,
+            "account_id": str(account_id),
             "amount": 100,
             "merchant": "Paytm",
             "location": "Delhi",
             "transaction_type": "online"
-        },
-        headers=headers
+        }
     )
 
     assert response.status_code == 404
 
-def test_create_transaction_insufficient_balance():
-    headers = get_auth_headers()
 
-    response = client.post(
+def test_create_transaction_insufficient_balance(
+    auth_client,
+    test_account
+):
+    response = auth_client.post(
         "/transactions/",
         json={
-            "account_id": "77c23e50-cada-4637-9ad6-7c50dace0aa1",
+            "account_id": str(test_account.id),
             "amount": 999999999,
             "merchant": "Paytm",
             "location": "Delhi",
             "transaction_type": "online"
-        },
-        headers=headers
+        }
     )
 
     assert response.status_code == 400
     assert response.json()["detail"] == "Insufficient account balance"
 
-def test_create_transaction_invalid_amount():
-    headers = get_auth_headers()
 
-    response = client.post(
+def test_create_transaction_invalid_amount(
+    auth_client,
+    test_account
+):
+    response = auth_client.post(
         "/transactions/",
         json={
-            "account_id": "77c23e50-cada-4637-9ad6-7c50dace0aa1",
+            "account_id": str(test_account.id),
             "amount": 0,
             "merchant": "Paytm",
             "location": "Delhi",
             "transaction_type": "online"
-        },
-        headers=headers
+        }
     )
 
     assert response.status_code == 422
 
-def test_create_transaction_invalid_type():
-    headers = get_auth_headers()
 
-    response = client.post(
+def test_create_transaction_invalid_type(
+    auth_client,
+    test_account
+):
+    response = auth_client.post(
         "/transactions/",
         json={
-            "account_id": "77c23e50-cada-4637-9ad6-7c50dace0aa1",
+            "account_id": str(test_account.id),
             "amount": 100,
             "merchant": "Paytm",
             "location": "Delhi",
             "transaction_type": "invalid_type"
-        },
-        headers=headers
+        }
     )
 
     assert response.status_code == 422
 
-def test_create_transaction_missing_amount():
-    headers = get_auth_headers()
 
-    response = client.post(
+def test_create_transaction_missing_amount(
+    auth_client,
+    test_account
+):
+    response = auth_client.post(
         "/transactions/",
         json={
-            "account_id": "77c23e50-cada-4637-9ad6-7c50dace0aa1",
+            "account_id": str(test_account.id),
             "merchant": "Paytm",
             "location": "Delhi",
             "transaction_type": "online"
-        },
-        headers=headers
+        }
     )
 
     assert response.status_code == 422
 
 
-def test_create_approved_transaction():
-    headers = get_auth_headers()
+# ============================================================
+# Fraud Detection
+# ============================================================
 
-    response = client.post(
+def test_create_approved_transaction(
+    auth_client,
+    test_account
+):
+    response = auth_client.post(
         "/transactions/",
         json={
-            "account_id": "4e98ba96-2ce7-48cc-a0a6-82ab980ad13d",
+            "account_id": str(test_account.id),
             "amount": 100,
             "merchant": "Amazon",
             "location": "Delhi",
             "transaction_type": "offline"
-        },
-        headers=headers
+        }
     )
 
     assert response.status_code == 200
@@ -185,19 +175,20 @@ def test_create_approved_transaction():
     assert data["fraud_decision"] == "approved"
     assert float(data["fraud_score"]) == 0.0
 
-def test_create_review_transaction():
-    headers = get_auth_headers()
 
-    response = client.post(
+def test_create_review_transaction(
+    auth_client,
+    fraud_test_account
+):
+    response = auth_client.post(
         "/transactions/",
         json={
-            "account_id": "4e98ba96-2ce7-48cc-a0a6-82ab980ad13d",
+            "account_id": str(fraud_test_account.id),
             "amount": 50000,
             "merchant": "HighValue Store",
             "location": "Delhi",
             "transaction_type": "offline"
-        },
-        headers=headers
+        }
     )
 
     assert response.status_code == 200
@@ -208,19 +199,20 @@ def test_create_review_transaction():
     assert data["fraud_decision"] == "review"
     assert float(data["fraud_score"]) == 0.4
 
-def test_create_blocked_transaction():
-    headers = get_auth_headers()
 
-    response = client.post(
+def test_create_blocked_transaction(
+    auth_client,
+    fraud_test_account
+):
+    response = auth_client.post(
         "/transactions/",
         json={
-            "account_id": "4e98ba96-2ce7-48cc-a0a6-82ab980ad13d",
+            "account_id": str(fraud_test_account.id),
             "amount": 100000,
             "merchant": "HighRisk Merchant",
             "location": "Delhi",
             "transaction_type": "online"
-        },
-        headers=headers
+        }
     )
 
     assert response.status_code == 200
@@ -231,105 +223,113 @@ def test_create_blocked_transaction():
     assert data["fraud_decision"] == "blocked"
     assert float(data["fraud_score"]) == 0.7
 
-def test_get_transactions_unauthorized():
+
+# ============================================================
+# GET /transactions/
+# ============================================================
+
+def test_get_transactions_unauthorized(client):
     response = client.get("/transactions/")
 
     assert response.status_code == 401
 
-def test_get_transactions_authorized():
-    headers = get_auth_headers()
 
-    response = client.get(
-        "/transactions/",
-        headers=headers
-    )
-
-    assert response.status_code == 200
-    assert isinstance(response.json(), list)
-
-def test_get_transactions_excludes_other_users_transactions():
-    headers = get_auth_headers()
-
-    response = client.get(
-        "/transactions/",
-        headers=headers
-    )
+def test_get_transactions_authorized(
+    auth_client,
+    test_transaction
+):
+    response = auth_client.get("/transactions/")
 
     assert response.status_code == 200
 
     transactions = response.json()
 
-    other_account_id = "e8655968-d32f-4ab7-8054-dee852963be4"
-
-    for transaction in transactions:
-        assert transaction["account_id"] != other_account_id
+    assert len(transactions) == 1
+    assert transactions[0]["id"] == str(test_transaction.id)
 
 
-def test_get_transaction_unauthorized():
-    transaction_id = "9d412948-45e4-447b-9c65-37fe227188bb"
+def test_get_transactions_excludes_other_users_transactions(
+    auth_client,
+    test_transaction,
+    other_transaction
+):
+    response = auth_client.get("/transactions/")
 
+    assert response.status_code == 200
+
+    transactions = response.json()
+
+    transaction_ids = [
+        transaction["id"]
+        for transaction in transactions
+    ]
+
+    assert str(test_transaction.id) in transaction_ids
+    assert str(other_transaction.id) not in transaction_ids
+
+
+# ============================================================
+# GET /transactions/{transaction_id}
+# ============================================================
+
+def test_get_transaction_unauthorized(
+    client,
+    test_transaction
+):
     response = client.get(
-        f"/transactions/{transaction_id}"
+        f"/transactions/{test_transaction.id}"
     )
 
     assert response.status_code == 401
 
-def test_get_own_transaction():
-    headers = get_auth_headers()
 
-    create_response = client.post(
-        "/transactions/",
-        json={
-            "account_id": "77c23e50-cada-4637-9ad6-7c50dace0aa1",
-            "amount": 100,
-            "merchant": "Test Merchant",
-            "location": "Delhi",
-            "transaction_type": "offline"
-        },
-        headers=headers
-    )
-
-    assert create_response.status_code == 200
-
-    transaction_id = create_response.json()["id"]
-
-    response = client.get(
-        f"/transactions/{transaction_id}",
-        headers=headers
+def test_get_own_transaction(
+    auth_client,
+    test_transaction
+):
+    response = auth_client.get(
+        f"/transactions/{test_transaction.id}"
     )
 
     assert response.status_code == 200
-    assert response.json()["id"] == transaction_id
 
-def test_get_other_users_transaction():
-    headers = get_auth_headers()
+    data = response.json()
 
-    transaction_id = "52a0385a-bd6e-46b0-9d1c-d31d155ea186"
+    assert data["id"] == str(test_transaction.id)
+    assert data["account_id"] == str(test_transaction.account_id)
 
-    response = client.get(
-        f"/transactions/{transaction_id}",
-        headers=headers
+
+def test_get_other_users_transaction(
+    auth_client,
+    other_transaction
+):
+    response = auth_client.get(
+        f"/transactions/{other_transaction.id}"
     )
 
     assert response.status_code == 403
 
-def test_get_nonexistent_transaction():
-    headers = get_auth_headers()
 
-    transaction_id = "00000000-0000-0000-0000-000000000000"
+def test_get_nonexistent_transaction(auth_client):
+    transaction_id = uuid.uuid4()
 
-    response = client.get(
-        f"/transactions/{transaction_id}",
-        headers=headers
+    response = auth_client.get(
+        f"/transactions/{transaction_id}"
     )
 
     assert response.status_code == 404
 
-def test_update_transaction_unauthorized():
-    transaction_id = "00000000-0000-0000-0000-000000000000"
 
+# ============================================================
+# PUT /transactions/{transaction_id}
+# ============================================================
+
+def test_update_transaction_unauthorized(
+    client,
+    test_transaction
+):
     response = client.put(
-        f"/transactions/{transaction_id}",
+        f"/transactions/{test_transaction.id}",
         json={
             "merchant": "Updated Merchant",
             "location": "Mumbai"
@@ -338,112 +338,139 @@ def test_update_transaction_unauthorized():
 
     assert response.status_code == 401
 
-def test_update_other_users_transaction():
-    headers = get_auth_headers()
 
-    transaction_id = "52a0385a-bd6e-46b0-9d1c-d31d155ea186"
-
-    response = client.put(
-        f"/transactions/{transaction_id}",
+def test_update_own_pending_transaction(
+    auth_client,
+    test_transaction
+):
+    response = auth_client.put(
+        f"/transactions/{test_transaction.id}",
         json={
             "merchant": "Updated Merchant",
             "location": "Mumbai"
-        },
-        headers=headers
+        }
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["id"] == str(test_transaction.id)
+    assert data["merchant"] == "Updated Merchant"
+    assert data["location"] == "Mumbai"
+
+
+def test_update_other_users_transaction(
+    auth_client,
+    other_transaction
+):
+    response = auth_client.put(
+        f"/transactions/{other_transaction.id}",
+        json={
+            "merchant": "Updated Merchant",
+            "location": "Mumbai"
+        }
     )
 
     assert response.status_code == 403
 
-def test_update_nonexistent_transaction():
-    headers = get_auth_headers()
 
-    transaction_id = "00000000-0000-0000-0000-000000000000"
+def test_update_nonexistent_transaction(auth_client):
+    transaction_id = uuid.uuid4()
 
-    response = client.put(
+    response = auth_client.put(
         f"/transactions/{transaction_id}",
         json={
             "merchant": "Updated Merchant",
             "location": "Mumbai"
-        },
-        headers=headers
+        }
     )
 
     assert response.status_code == 404
 
-def test_update_processed_transaction():
-    headers = get_auth_headers()
 
-    transaction_id = "9b484aa3-6dee-410b-afd8-64f6de818288"
-
-    response = client.put(
-        f"/transactions/{transaction_id}",
-        json={
-            "merchant": "Updated Merchant",
-            "location": "Mumbai"
-        },
-        headers=headers
-    )
-
-    assert response.status_code == 409
-    assert response.json()["detail"] == "Processed transactions cannot be modified"
-
-def test_delete_transaction_unauthorized():
-    transaction_id = "00000000-0000-0000-0000-000000000000"
-
-    response = client.delete(
-        f"/transactions/{transaction_id}"
-    )
-
-    assert response.status_code == 401
-
-def test_delete_own_transaction():
-    headers = get_auth_headers()
-
-    create_response = client.post(
+def test_update_processed_transaction(
+    auth_client,
+    test_account
+):
+    # Create an approved transaction first.
+    create_response = auth_client.post(
         "/transactions/",
         json={
-            "account_id": "4e98ba96-2ce7-48cc-a0a6-82ab980ad13d",
+            "account_id": str(test_account.id),
             "amount": 100,
-            "merchant": "Delete Test",
+            "merchant": "Processed Merchant",
             "location": "Delhi",
             "transaction_type": "offline"
-        },
-        headers=headers
+        }
     )
 
     assert create_response.status_code == 200
 
     transaction_id = create_response.json()["id"]
 
-    delete_response = client.delete(
+    assert create_response.json()["status"] == "approved"
+
+    # Processed transaction must not be editable.
+    response = auth_client.put(
         f"/transactions/{transaction_id}",
-        headers=headers
+        json={
+            "merchant": "Updated Merchant",
+            "location": "Mumbai"
+        }
     )
 
-    assert delete_response.status_code == 200
-    assert delete_response.json()["transaction_id"] == transaction_id
+    assert response.status_code == 409
+    assert response.json()["detail"] == (
+        "Processed transactions cannot be modified"
+    )
 
-def test_delete_other_users_transaction():
-    headers = get_auth_headers()
 
-    transaction_id = "52a0385a-bd6e-46b0-9d1c-d31d155ea186"
+# ============================================================
+# DELETE /transactions/{transaction_id}
+# ============================================================
 
+def test_delete_transaction_unauthorized(
+    client,
+    test_transaction
+):
     response = client.delete(
-        f"/transactions/{transaction_id}",
-        headers=headers
+        f"/transactions/{test_transaction.id}"
+    )
+
+    assert response.status_code == 401
+
+
+def test_delete_own_transaction(
+    auth_client,
+    test_transaction
+):
+    response = auth_client.delete(
+        f"/transactions/{test_transaction.id}"
+    )
+
+    assert response.status_code == 200
+    assert response.json()["transaction_id"] == str(
+        test_transaction.id
+    )
+
+
+def test_delete_other_users_transaction(
+    auth_client,
+    other_transaction
+):
+    response = auth_client.delete(
+        f"/transactions/{other_transaction.id}"
     )
 
     assert response.status_code == 403
 
-def test_delete_nonexistent_transaction():
-    headers = get_auth_headers()
 
-    transaction_id = "00000000-0000-0000-0000-000000000000"
+def test_delete_nonexistent_transaction(auth_client):
+    transaction_id = uuid.uuid4()
 
-    response = client.delete(
-        f"/transactions/{transaction_id}",
-        headers=headers
+    response = auth_client.delete(
+        f"/transactions/{transaction_id}"
     )
 
     assert response.status_code == 404
-
