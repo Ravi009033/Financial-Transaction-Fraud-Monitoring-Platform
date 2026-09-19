@@ -535,9 +535,10 @@ def test_get_transactions_for_user_no_accounts():
         fraud_service
     )
 
-    result = service.get_transactions_for_user(user_id)
+    transactions, total = service.get_transactions_for_user(user_id)
 
-    assert result == []
+    assert transactions == []
+    assert total == 0
 
     repository.get_by_account_ids.assert_not_called()
 
@@ -561,7 +562,10 @@ def test_get_transactions_for_user():
         account2
     ]
 
-    repository.get_by_account_ids.return_value = transactions
+    repository.get_by_account_ids.return_value = (
+        transactions,
+        2
+    )
 
     service = TransactionService(
         repository,
@@ -569,14 +573,18 @@ def test_get_transactions_for_user():
         fraud_service
     )
 
-    result = service.get_transactions_for_user(user_id)
+    result, total = service.get_transactions_for_user(user_id)
 
     assert result == transactions
+    assert total == 2
 
     repository.get_by_account_ids.assert_called_once_with(
-        [account1.id, account2.id]
+        [account1.id, account2.id],
+        skip=0,
+        limit=10
     )
 
+    
 def test_update_transaction_for_user_nonexistent():
     repository = Mock()
     account_repository = Mock()

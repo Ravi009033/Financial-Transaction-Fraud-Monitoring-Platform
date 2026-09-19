@@ -1,8 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.models.user import User
 from app.repositories.transaction_repository import TransactionRepository 
-from app.schemas.transaction import TransactionCreate, TransactionResponse, TransactionUpdate
+from app.schemas.transaction import (
+    TransactionCreate, 
+    TransactionResponse, 
+    TransactionUpdate,
+    PaginatedResponse
+)
 from app.security.dependencies import get_current_user
 from app.services.transaction_service import TransactionService
 from app.services.fraud_service import FraudDetectionService
@@ -63,8 +68,10 @@ def add_transaction(
 
     return result
 
-@router.get("/", response_model=list[TransactionResponse])
+@router.get("/", response_model=PaginatedResponse[TransactionResponse])
 def get_transactions(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -78,9 +85,21 @@ def get_transactions(
         fraud_service
     )
 
-    return service.get_transactions_for_user(
-        current_user.id
+    transactions, total = service.get_transactions_for_user(
+        current_user.id,
+        page,
+        page_size
     )
+
+    total_pages = (total + page_size - 1) // page_size
+
+    return {
+        "items": transactions,
+        "page": page,
+        "page_size": page_size,
+        "total": total,
+        "total_pages": total_pages
+    }
 
 @router.get("/{transaction_id}", response_model=TransactionResponse)
 def get_transaction(

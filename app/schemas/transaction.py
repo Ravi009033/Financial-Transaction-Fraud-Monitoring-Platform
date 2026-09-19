@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 from decimal import Decimal
 from enum import Enum
 from uuid import UUID
+from typing import Generic, TypeVar
 
 class TransactionType(str, Enum):
     ONLINE = "online"
@@ -37,3 +38,12 @@ class TransactionResponse(BaseModel):
 class TransactionUpdate(BaseModel):
     merchant: str = Field(min_length=2, max_length=100)
     location: str = Field(min_length=2, max_length=100)
+
+T = TypeVar("T")
+
+class PaginatedResponse(BaseModel, Generic[T]):
+    items: list[T]
+    page: int
+    page_size: int
+    total: int
+    total_pages: int

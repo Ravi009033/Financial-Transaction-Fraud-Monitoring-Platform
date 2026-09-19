@@ -69,9 +69,24 @@ class TransactionRepository:
 
         return db_transaction
 
-    def get_by_account_ids(self, account_ids: list[UUID]):
-        return (
+    def get_by_account_ids(
+        self,
+        account_ids: list[UUID],
+        skip: int = 0,
+        limit: int = 10
+    ):
+        query = (
             self.db.query(Transaction)
             .filter(Transaction.account_id.in_(account_ids))
+        )
+
+        total = query.count()
+
+        transactions = (
+            query
+            .offset(skip)
+            .limit(limit)
             .all()
         )
+
+        return transactions, total

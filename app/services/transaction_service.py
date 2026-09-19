@@ -107,15 +107,28 @@ class TransactionService:
 
         return transaction
 
-    def get_transactions_for_user(self, user_id: UUID):
+    def get_transactions_for_user(
+        self,
+        user_id: UUID,
+        page: int = 1,
+        page_size: int = 10
+    ):
         accounts = self.account_repository.get_by_user_id(user_id)
 
         if not accounts:
-            return []
+            return [], 0
 
         account_ids = [account.id for account in accounts]
 
-        return self.repository.get_by_account_ids(account_ids)
+        skip = (page - 1) * page_size
+
+        transactions, total = self.repository.get_by_account_ids(
+            account_ids,
+            skip=skip,
+            limit=page_size
+        )
+
+        return transactions, total
 
     def update_transaction_for_user(
         self,

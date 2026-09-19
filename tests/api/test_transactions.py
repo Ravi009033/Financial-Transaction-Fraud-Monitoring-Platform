@@ -1,6 +1,5 @@
 import uuid
 
-
 # ============================================================
 # POST /transactions/
 # ============================================================
@@ -233,7 +232,6 @@ def test_get_transactions_unauthorized(client):
 
     assert response.status_code == 401
 
-
 def test_get_transactions_authorized(
     auth_client,
     test_transaction
@@ -242,10 +240,15 @@ def test_get_transactions_authorized(
 
     assert response.status_code == 200
 
-    transactions = response.json()
+    data = response.json()
 
-    assert len(transactions) == 1
-    assert transactions[0]["id"] == str(test_transaction.id)
+    assert data["page"] == 1
+    assert data["page_size"] == 10
+    assert data["total"] == 1
+    assert data["total_pages"] == 1
+
+    assert len(data["items"]) == 1
+    assert data["items"][0]["id"] == str(test_transaction.id)
 
 
 def test_get_transactions_excludes_other_users_transactions(
@@ -257,7 +260,9 @@ def test_get_transactions_excludes_other_users_transactions(
 
     assert response.status_code == 200
 
-    transactions = response.json()
+    data = response.json()
+
+    transactions = data["items"]
 
     transaction_ids = [
         transaction["id"]
@@ -266,6 +271,9 @@ def test_get_transactions_excludes_other_users_transactions(
 
     assert str(test_transaction.id) in transaction_ids
     assert str(other_transaction.id) not in transaction_ids
+
+    assert data["total"] == 1
+    assert data["total_pages"] == 1
 
 
 # ============================================================
@@ -474,3 +482,49 @@ def test_delete_nonexistent_transaction(auth_client):
     )
 
     assert response.status_code == 404
+
+
+def test_get_transactions_with_page_size(auth_client, test_transaction):
+    response = auth_client.get("/transactions/?page_size=2")
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["page"] == 1
+    assert data["page_size"] == 2
+    assert data["total"] == 1
+    assert data["total_pages"] == 1
+    assert len(data["items"]) == 1
+    assert data["items"][0]["id"] == str(test_transaction.id)
+
+
+def test_get_transactions_page_2(auth_client, test_transaction):
+    response = auth_client.get("/transactions/?page=2&page_size=1")
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["page"] == 2
+    assert data["page_size"] == 1
+    assert data["total"] == 1
+    assert data["total_pages"] == 1
+    assert data["items"] == []
+
+def test_get_transactions_invalid_page(auth_client):
+    response = auth_client.get("/transactions/?page=0")
+
+    assert response.status_code == 422
+
+
+def test_get_transactions_invalid_page_size_zero(auth_client):
+    response = auth_client.get("/transactions/?page_size=0")
+
+    assert response.status_code == 422
+
+
+def test_get_transactions_invalid_page_size_too_large(auth_client):
+    response = auth_client.get("/transactions/?page_size=101")
+
+    assert response.status_code == 422
