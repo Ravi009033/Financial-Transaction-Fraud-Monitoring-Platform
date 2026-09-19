@@ -8,6 +8,7 @@ from app.exceptions import (
     AccountAccessDeniedError,
     TransactionAccessDeniedError,
 )
+from unittest.mock import patch
 
 
 client = TestClient(app)
@@ -112,3 +113,22 @@ def test_generic_exception_handler():
         "error": "INTERNAL_SERVER_ERROR",
         "message": "An unexpected error occurred"
     }   
+
+def test_readiness_check():
+    response = client.get("/ready")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "ready"
+    }
+
+def test_readiness_check_database_unavailable():
+    with patch("app.main.engine.connect") as mock_connect:
+        mock_connect.side_effect = Exception("Database unavailable")
+
+        response = client.get("/ready")
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "status": "not_ready"
+    }

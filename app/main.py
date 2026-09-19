@@ -8,7 +8,8 @@ from app.api.users import router as users_router
 from app.api.accounts import router as account_router
 from app.api.transactions import router as transaction_router
 from app.api.auth import router as auth_router
-
+from sqlalchemy import text
+from app.db.database import engine
 from app.schemas.error import ErrorResponse
 from fastapi.responses import JSONResponse
 from app.exceptions import (
@@ -131,3 +132,21 @@ def health_check():
         "message": "Fraud Monitoring API is running"
 
     }
+
+@app.get("/ready")
+def readiness_check():
+    try:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+
+        return {
+            "status": "ready"
+        }
+
+    except Exception:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "not_ready"
+            }
+        )
