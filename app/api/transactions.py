@@ -19,6 +19,7 @@ from app.exceptions import (
     TransactionAlreadyProcessedError,
     TransactionAccessDeniedError
 )
+from app.schemas.error import ErrorResponse
 
 
 router = APIRouter(
@@ -26,7 +27,15 @@ router = APIRouter(
     tags=["Transactions"]
 )
 
-@router.post("/", response_model=TransactionResponse)
+@router.post("/",
+    response_model=TransactionResponse,
+    responses={
+        401: {"model": ErrorResponse},
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        400: {"model": ErrorResponse},
+    }
+)
 def add_transaction(
     transaction: TransactionCreate,
     db: Session = Depends(get_db),
@@ -68,7 +77,12 @@ def add_transaction(
 
     return result
 
-@router.get("/", response_model=PaginatedResponse[TransactionResponse])
+@router.get("/",
+    response_model=PaginatedResponse[TransactionResponse],
+    responses={
+        401: {"model": ErrorResponse},
+    }
+)
 def get_transactions(
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
@@ -101,7 +115,14 @@ def get_transactions(
         "total_pages": total_pages
     }
 
-@router.get("/{transaction_id}", response_model=TransactionResponse)
+@router.get("/{transaction_id}",
+    response_model=TransactionResponse,
+    responses={
+        401: {"model": ErrorResponse},
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+    }
+)
 def get_transaction(
     transaction_id: UUID,
     db: Session = Depends(get_db),
@@ -137,25 +158,58 @@ def get_transaction(
 
     return transaction
 
-@router.get("/account/{account_id}")
+@router.get("/account/{account_id}",
+    response_model=list[TransactionResponse],
+    responses={
+        401: {"model": ErrorResponse},
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+    }
+)
 def get_transactions_by_account(
     account_id: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
-    repository = TransactionRepository(db)
+    transaction_repository = TransactionRepository(db)
     account_repository = AccountRepository(db)
     fraud_service = FraudDetectionService()
 
     service = TransactionService(
-        repository,
+        transaction_repository,
         account_repository,
         fraud_service
     )
 
-    return service.get_transactions_by_account(account_id)
+    try:
+        account = account_repository.get_by_id(account_id)
 
+        if account is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Account not found"
+            )
 
-@router.put("/{transaction_id}")
+        if account.user_id != current_user.id:
+            raise HTTPException(
+                status_code=403,
+                detail="You do not have access to this account"
+            )
+
+        return service.get_transactions_by_account(account_id)
+
+    except HTTPException:
+        raise
+
+@router.put("/{transaction_id}",
+    response_model=TransactionResponse,
+    responses={
+        401: {"model": ErrorResponse},
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        409: {"model": ErrorResponse},
+    }
+)
 def update_transaction(
     transaction_id: UUID,
     transaction: TransactionUpdate,
@@ -200,7 +254,13 @@ def update_transaction(
     return updated_transaction
 
 
-@router.delete("/{transaction_id}")
+@router.delete("/{transaction_id}",
+    responses={
+        401: {"model": ErrorResponse},
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+    }
+)
 def delete_transaction(
     transaction_id: UUID,
     db: Session = Depends(get_db),

@@ -9,6 +9,7 @@ from app.api.accounts import router as account_router
 from app.api.transactions import router as transaction_router
 from app.api.auth import router as auth_router
 
+from app.schemas.error import ErrorResponse
 from fastapi.responses import JSONResponse
 from app.exceptions import (
     DuplicateAccountError,

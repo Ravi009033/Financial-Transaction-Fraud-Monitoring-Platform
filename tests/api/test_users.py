@@ -23,6 +23,13 @@ def test_get_users_authorized(auth_client, test_user):
     assert data[0]["id"] == str(test_user.id)
     assert data[0]["email"] == test_user.email
 
+def test_get_other_user_forbidden(auth_client, other_user):
+    response = auth_client.get(
+        f"/users/{other_user.id}"
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "You do not have access to this user"
 
 # ============================================================
 # GET /users/{user_id}
@@ -119,6 +126,19 @@ def test_update_nonexistent_user(auth_client):
 
     assert response.status_code == 404
 
+def test_update_other_user_forbidden(auth_client, other_user):
+    response = auth_client.put(
+        f"/users/{other_user.id}",
+        json={
+            "name": "Unauthorized Update",
+            "email": other_user.email,
+            "phone": "9876543213",
+            "address": "Unauthorized Address"
+        }
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "You do not have access to this user"
 
 # ============================================================
 # DELETE /users/{user_id}
@@ -144,3 +164,9 @@ def test_delete_nonexistent_user(auth_client):
     )
 
     assert response.status_code == 404
+
+def test_delete_other_user_forbidden(auth_client, other_user):
+    response = auth_client.delete(f"/users/{other_user.id}")
+    
+    assert response.status_code == 403
+    assert response.json()["detail"] == "You do not have access to this user"

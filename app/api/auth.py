@@ -7,6 +7,8 @@ from app.services.user_service import UserService
 from app.services.auth_service import AuthService
 from app.schemas.auth import LoginRequest, TokenResponse
 from fastapi.security import OAuth2PasswordRequestForm
+from app.schemas.error import ErrorResponse
+
 
 router = APIRouter(
     prefix="/auth",
@@ -14,7 +16,12 @@ router = APIRouter(
 )
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post("/login",
+    response_model=TokenResponse,
+    responses={
+        401: {"model": ErrorResponse},
+    }
+)
 def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)

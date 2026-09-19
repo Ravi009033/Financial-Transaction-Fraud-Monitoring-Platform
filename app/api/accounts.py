@@ -9,6 +9,7 @@ from app.services.account_service import AccountService
 from app.repositories.user_repository import UserRepository
 from app.security.dependencies import get_current_user
 from app.models.user import User
+from app.schemas.error import ErrorResponse
 
 
 router = APIRouter(
@@ -17,7 +18,15 @@ router = APIRouter(
 )
 
 
-@router.post("/", response_model=AccountResponse)
+@router.post(
+        "/", 
+        response_model=AccountResponse,
+        responses={
+        401: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        409: {"model": ErrorResponse},
+    }
+)
 def create_account(
     account: AccountCreate,
     db: Session = Depends(get_db),
@@ -43,7 +52,12 @@ def create_account(
         )
     return result
     
-@router.get("/", response_model=list[AccountResponse])
+@router.get("/",
+    response_model=list[AccountResponse],
+    responses={
+        401: {"model": ErrorResponse},
+    }
+)
 def get_accounts(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -54,7 +68,14 @@ def get_accounts(
 
     return service.get_accounts_by_user(current_user.id)
 
-@router.get("/{account_id}", response_model=AccountResponse)
+@router.get("/{account_id}",
+    response_model=AccountResponse,
+    responses={
+        401: {"model": ErrorResponse},
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+    }
+)
 def get_account(
     account_id: UUID,
     db: Session = Depends(get_db),
@@ -82,7 +103,15 @@ def get_account(
 
     return account
 
-@router.put("/{account_id}", response_model=AccountResponse)
+@router.put("/{account_id}",
+    response_model=AccountResponse,
+    responses={
+        401: {"model": ErrorResponse},
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        409: {"model": ErrorResponse},
+    }
+)
 def update_account(
     account_id: UUID,
     account: AccountUpdate,
@@ -125,7 +154,13 @@ def update_account(
     return updated_account
 
 
-@router.delete("/{account_id}")
+@router.delete("/{account_id}",
+    responses={
+        401: {"model": ErrorResponse},
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+    }
+)
 def delete_account(
     account_id: UUID,
     db: Session = Depends(get_db),

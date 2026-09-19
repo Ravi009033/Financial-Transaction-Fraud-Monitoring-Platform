@@ -484,6 +484,10 @@ def test_delete_nonexistent_transaction(auth_client):
     assert response.status_code == 404
 
 
+# ============================================================
+# test pagination
+# ============================================================
+
 def test_get_transactions_with_page_size(auth_client, test_transaction):
     response = auth_client.get("/transactions/?page_size=2")
 
@@ -528,3 +532,51 @@ def test_get_transactions_invalid_page_size_too_large(auth_client):
     response = auth_client.get("/transactions/?page_size=101")
 
     assert response.status_code == 422
+
+
+# ============================================================
+# test transactions by account number
+# ============================================================
+def test_get_transactions_by_account_authorized(
+    auth_client,
+    test_account,
+    test_transaction
+):
+    response = auth_client.get(
+        f"/transactions/account/{test_account.id}"
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert len(data) == 1
+    assert data[0]["id"] == str(test_transaction.id)
+
+def test_get_transactions_by_account_forbidden(
+    auth_client,
+    other_account
+):
+    response = auth_client.get(
+        f"/transactions/account/{other_account.id}"
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "You do not have access to this account"
+
+def test_get_transactions_by_account_not_found(auth_client):
+    from uuid import uuid4
+
+    response = auth_client.get(
+        f"/transactions/account/{uuid4()}"
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Account not found"
+
+def test_get_transactions_by_account_unauthorized(test_account, client):
+    response = client.get(
+        f"/transactions/account/{test_account.id}"
+    )
+
+    assert response.status_code == 401
