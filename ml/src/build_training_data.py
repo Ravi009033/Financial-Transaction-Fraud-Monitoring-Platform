@@ -69,11 +69,6 @@ def generate_training_data(
 
         hour = features["transaction_hour"]
 
-        late_night = (
-            rules["late_night_start"]
-            <= hour
-            < rules["late_night_end"]
-        )
 
         # Synthetic fraud scenario:
         #
@@ -91,7 +86,7 @@ def generate_training_data(
         if amount_ratio > 1:
             risk_score += (
                 rules["amount_ratio_risk"]
-                * math.log(amount_ratio)
+                * math.log(amount_ratio - 1)
             )
                 
         # Transaction velocity.
@@ -102,6 +97,12 @@ def generate_training_data(
             * min(velocity, 5)
         )
 
+        late_night = (
+            rules["late_night_start"]
+            <= hour
+            < rules["late_night_end"]
+        )
+
         if late_night:
             risk_score += rules["late_night_risk"]
 
@@ -110,8 +111,18 @@ def generate_training_data(
             risk_score += rules["online_risk"]
 
         # Combined suspicious behavior.
-        if amount_ratio >= 4 and velocity >= 2:
-            risk_score += rules["combined_risk"]
+        if amount_ratio >= 2 and velocity >= 2:
+            risk_score += (
+                rules["combined_risk"]
+                * min(
+                    amount_ratio / 2,
+                    4,
+                )
+            )
+
+        if amount_ratio >= 4 and velocity >= 4:
+
+            risk_score += 1.0
 
 
         # Convert risk score into probability

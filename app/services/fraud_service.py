@@ -1,43 +1,74 @@
 from decimal import Decimal
+import pandas as pd
+
+from ml.src.features import build_transaction_features
+from ml.src.production_predict import predict_production_fraud
+
 
 class FraudDetectionService:
-    def calculate_fraud_score(self, amount: Decimal, transaction_type: str) -> Decimal:
-        score = Decimal("0.0")
-         # Rule 1: High transaction amount
-        if amount >= Decimal("100000"):
-            score += Decimal("0.6")
 
-        elif amount >= Decimal("50000"):
-            score += Decimal("0.4")
+    def evaluate_transaction(
+        self,
+        amount: Decimal,
+        transaction_type: str,
+        timestamp,
+        historical_transactions: list,
+    ):
+        # Convert SQLAlchemy transactions into the
+        # historical format required by the feature builder.
 
-        # Rule 2: Online transactions carry additional risk
-        if transaction_type == "online":
-            score += Decimal("0.1")
+        history_rows = [
+            {
+                "amount": transaction.amount,
+                "timestamp": transaction.timestamp,
+            }
+            for transaction in historical_transactions
+        ]
 
-        # Keep score between 0 and 1
-        score = min(score, Decimal("1.0"))
+        historical_df = pd.DataFrame(
+            history_rows,
+            columns=["amount", "timestamp"],
+        )
 
-        return score
+        transaction = {
+            "amount": amount,
+            "timestamp": timestamp,
+            "transaction_type": transaction_type,
+        }
 
-    def make_decision(self, score: Decimal) -> str:
+        # Build features using only historical data.
+        features = build_transaction_features(
+            transaction,
+            historical_df,
+        )
 
-        if score >= Decimal("0.7"):
+        # Run production ML model.
+        prediction = predict_production_fraud(
+            features
+        )
+
+        fraud_score = Decimal(
+            str(prediction["fraud_score"])
+        )
+
+        fraud_decision = self.make_decision(
+            fraud_score
+        )
+
+        return {
+            "fraud_score": fraud_score,
+            "fraud_decision": fraud_decision,
+        }
+
+    def make_decision(
+        self,
+        score: Decimal
+    ) -> str:
+
+        if score >= Decimal("0.70"):
             return "blocked"
 
-        elif score >= Decimal("0.4"):
+        elif score >= Decimal("0.33"):
             return "review"
 
         return "approved"
-
-    def evaluate_transaction(self, amount: Decimal, transaction_type: str):
-        score = self.calculate_fraud_score(
-            amount,
-            transaction_type
-        )
-
-        decision = self.make_decision(score)
-
-        return {
-            "fraud_score": score,
-            "fraud_decision": decision
-        }

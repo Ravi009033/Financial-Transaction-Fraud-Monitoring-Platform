@@ -214,3 +214,25 @@ def fraud_test_account(db, test_user):
     db.refresh(account)
 
     return account
+
+@pytest.fixture
+def processed_transaction(db, test_account):
+    from app.models.transaction import Transaction, TransactionStatus
+    from app.models.transaction import TransactionType
+
+    transaction = Transaction(
+        account_id=test_account.id,
+        amount=100,
+        merchant="Processed Merchant",
+        location="Gurugram",
+        transaction_type=TransactionType.OFFLINE,
+        status=TransactionStatus.APPROVED,
+        fraud_score=0.10,
+        fraud_decision="approved",
+    )
+
+    db.add(transaction)
+    db.commit()
+    db.refresh(transaction)
+
+    return transaction

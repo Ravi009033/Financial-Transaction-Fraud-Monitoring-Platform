@@ -2,6 +2,7 @@ from decimal import Decimal
 from uuid import uuid4
 from unittest.mock import Mock
 import pytest
+from datetime import datetime, timezone
 
 from app.services.transaction_service import TransactionService
 from app.schemas.transaction import TransactionCreate, TransactionUpdate
@@ -57,9 +58,19 @@ def test_approved_transaction():
 
     account_repository.get_by_id.return_value = account
 
+    historical_transaction = Mock()
+    historical_transaction.amount = Decimal("500")
+    historical_transaction.timestamp = datetime(
+        2026, 9, 19, 10, 0, tzinfo=timezone.utc
+    )
+
+    transaction_repository.get_transaction_history.return_value = [
+        historical_transaction
+    ]
+
     fraud_service.evaluate_transaction.return_value = {
         "fraud_score": Decimal("0.0"),
-        "fraud_decision": "approved"
+        "fraud_decision": "approved",
     }
 
     transaction = TransactionCreate(
@@ -67,32 +78,53 @@ def test_approved_transaction():
         amount=Decimal("3000"),
         merchant="Amazon",
         location="Delhi",
-        transaction_type="online"
+        transaction_type="online",
     )
 
     service = TransactionService(
         transaction_repository,
         account_repository,
-        fraud_service
+        fraud_service,
     )
 
-    service.create_transaction(transaction,user_id)
+    service.create_transaction(
+        transaction,
+        user_id,
+    )
 
     assert account.balance == Decimal("7000")
 
-    fraud_service.evaluate_transaction.assert_called_once_with(
-        transaction.amount,
-        transaction.transaction_type
+    fraud_service.evaluate_transaction.assert_called_once()
+
+    call_kwargs = (
+        fraud_service.evaluate_transaction.call_args.kwargs
     )
 
-    transaction_repository.create.assert_called_once_with(
-        transaction,
-        {
-            "fraud_score": Decimal("0.0"),
-            "fraud_decision": "approved"
-        },
-        TransactionStatus.APPROVED
+    assert call_kwargs["amount"] == transaction.amount
+    assert (
+        call_kwargs["transaction_type"]
+        == transaction.transaction_type
     )
+    assert isinstance(
+        call_kwargs["timestamp"],
+        datetime,
+    )
+    assert (
+        call_kwargs["historical_transactions"]
+        == [historical_transaction]
+    )
+
+    transaction_repository.create.assert_called_once()
+
+    create_call = transaction_repository.create.call_args
+
+    assert create_call.args[0] == transaction
+    assert create_call.args[1] == {
+        "fraud_score": Decimal("0.0"),
+        "fraud_decision": "approved",
+    }
+    assert create_call.args[2] == TransactionStatus.APPROVED
+    assert isinstance(create_call.kwargs["timestamp"], datetime,)
 
 def test_review_transaction():
     account_repository = Mock()
@@ -106,9 +138,11 @@ def test_review_transaction():
 
     account_repository.get_by_id.return_value = account
 
+    transaction_repository.get_transaction_history.return_value = []
+
     fraud_service.evaluate_transaction.return_value = {
         "fraud_score": Decimal("0.5"),
-        "fraud_decision": "review"
+        "fraud_decision": "review",
     }
 
     transaction = TransactionCreate(
@@ -116,27 +150,32 @@ def test_review_transaction():
         amount=Decimal("50000"),
         merchant="Amazon",
         location="Delhi",
-        transaction_type="online"
+        transaction_type="online",
     )
 
     service = TransactionService(
         transaction_repository,
         account_repository,
-        fraud_service
+        fraud_service,
     )
 
-    service.create_transaction(transaction, user_id)
+    service.create_transaction(
+        transaction,
+        user_id,
+    )
 
-    # Balance should NOT change for a review transaction
+    # Review transactions must NOT deduct money.
     assert account.balance == Decimal("100000")
 
-    transaction_repository.create.assert_called_once_with(
-        transaction,
-        {
-            "fraud_score": Decimal("0.5"),
-            "fraud_decision": "review"
-        },
-        TransactionStatus.REVIEW
+    create_call = transaction_repository.create.call_args
+
+    assert create_call.args[0] == transaction
+    assert create_call.args[1]["fraud_decision"] == "review"
+    assert create_call.args[2] == TransactionStatus.REVIEW
+
+    assert isinstance(
+        create_call.kwargs["timestamp"],
+        datetime,
     )
 
 def test_blocked_transaction():
@@ -148,11 +187,14 @@ def test_blocked_transaction():
     account.balance = Decimal("100000")
     user_id = uuid4()
     account.user_id = user_id
+
     account_repository.get_by_id.return_value = account
+
+    transaction_repository.get_transaction_history.return_value = []
 
     fraud_service.evaluate_transaction.return_value = {
         "fraud_score": Decimal("0.7"),
-        "fraud_decision": "blocked"
+        "fraud_decision": "blocked",
     }
 
     transaction = TransactionCreate(
@@ -160,27 +202,32 @@ def test_blocked_transaction():
         amount=Decimal("100000"),
         merchant="Amazon",
         location="Delhi",
-        transaction_type="online"
+        transaction_type="online",
     )
 
     service = TransactionService(
         transaction_repository,
         account_repository,
-        fraud_service
+        fraud_service,
     )
 
-    service.create_transaction(transaction, user_id)
+    service.create_transaction(
+        transaction,
+        user_id,
+    )
 
-    # Blocked transactions must not deduct money
+    # Blocked transactions must NOT deduct money.
     assert account.balance == Decimal("100000")
 
-    transaction_repository.create.assert_called_once_with(
-        transaction,
-        {
-            "fraud_score": Decimal("0.7"),
-            "fraud_decision": "blocked"
-        },
-        TransactionStatus.BLOCKED
+    create_call = transaction_repository.create.call_args
+
+    assert create_call.args[0] == transaction
+    assert create_call.args[1]["fraud_decision"] == "blocked"
+    assert create_call.args[2] == TransactionStatus.BLOCKED
+
+    assert isinstance(
+        create_call.kwargs["timestamp"],
+        datetime,
     )
 
 def test_nonexistent_account():
@@ -280,11 +327,16 @@ def test_pending_transaction_for_unknown_fraud_decision():
 
     transaction_repository.create.assert_called_once()
 
-    args = transaction_repository.create.call_args.args
+    args = transaction_repository.create.call_args
 
-    assert args[0] == transaction
-    assert args[1]["fraud_decision"] == "unknown"
-    assert args[2] == TransactionStatus.PENDING
+    assert args.args[0] == transaction
+    assert args.args[1]["fraud_decision"] == "unknown"
+    assert args.args[2] == TransactionStatus.PENDING
+
+    assert isinstance(
+        args.kwargs["timestamp"],
+        datetime,
+    )
 
 def test_get_all_transactions():
     repository = Mock()

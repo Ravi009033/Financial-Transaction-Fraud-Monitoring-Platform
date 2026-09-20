@@ -1,8 +1,8 @@
 from pathlib import Path
 
 import joblib
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import (
@@ -19,8 +19,11 @@ from xgboost import XGBClassifier
 
 
 RANDOM_STATE = 42
+SELECTED_THRESHOLD = 0.11
 
 DATA_PATH = Path("ml/data/production_training_data.csv")
+MODEL_PATH = Path("ml/models/production_fraud_model.joblib")
+METADATA_PATH = Path("ml/models/production_model_metadata.json")
 
 FEATURES = [
     "amount",
@@ -38,7 +41,64 @@ FEATURES = [
 TARGET = "Class"
 
 
+def calculate_metrics(y_true, probabilities, threshold):
+    """Calculate classification metrics at a fixed threshold."""
+
+    predictions = (
+        probabilities >= threshold
+    ).astype(int)
+
+    tn, fp, fn, tp = confusion_matrix(
+        y_true,
+        predictions,
+    ).ravel()
+
+    return {
+        "precision": float(
+            precision_score(
+                y_true,
+                predictions,
+                zero_division=0,
+            )
+        ),
+        "recall": float(
+            recall_score(
+                y_true,
+                predictions,
+                zero_division=0,
+            )
+        ),
+        "f1": float(
+            f1_score(
+                y_true,
+                predictions,
+                zero_division=0,
+            )
+        ),
+        "roc_auc": float(
+            roc_auc_score(
+                y_true,
+                probabilities,
+            )
+        ),
+        "pr_auc": float(
+            average_precision_score(
+                y_true,
+                probabilities,
+            )
+        ),
+        "true_positives": int(tp),
+        "true_negatives": int(tn),
+        "false_positives": int(fp),
+        "false_negatives": int(fn),
+    }
+
+
 def main():
+
+    # ---------------------------------------------------------
+    # Load dataset
+    # ---------------------------------------------------------
 
     df = pd.read_csv(DATA_PATH)
 
@@ -46,6 +106,7 @@ def main():
     y = df[TARGET]
 
     print("Dataset shape:", df.shape)
+
     print("\nClass distribution:")
     print(y.value_counts())
 
@@ -81,12 +142,17 @@ def main():
     negative_count = (y_train == 0).sum()
     positive_count = (y_train == 1).sum()
 
-    scale_pos_weight = negative_count / positive_count
+    scale_pos_weight = (
+        negative_count / positive_count
+    )
 
-    print("\nScale pos weight:", scale_pos_weight)
+    print(
+        "\nScale pos weight:",
+        scale_pos_weight,
+    )
 
     # ---------------------------------------------------------
-    # XGBoost
+    # Train XGBoost
     # ---------------------------------------------------------
 
     model = XGBClassifier(
@@ -108,175 +174,135 @@ def main():
     )
 
     # ---------------------------------------------------------
-    # Validation
+    # Validation evaluation
     # ---------------------------------------------------------
 
-    val_probabilities = model.predict_proba(X_val)[:, 1]
+    val_probabilities = (
+        model.predict_proba(X_val)[:, 1]
+    )
+
+    val_metrics = calculate_metrics(
+        y_val,
+        val_probabilities,
+        SELECTED_THRESHOLD,
+    )
+
+    print("\nValidation metrics")
+    print("------------------")
+
+    for key, value in val_metrics.items():
+        print(f"{key}: {value}")
 
     # ---------------------------------------------------------
-    # Threshold tuning on validation set
-    # Goal:
-    #   Recall >= 0.80
-    #   Minimize false positives
+    # IMPORTANT:
+    # Threshold 0.11 was selected using validation data.
+    # We now freeze it and DO NOT tune it using test data.
     # ---------------------------------------------------------
 
+    test_probabilities = (
+        model.predict_proba(X_test)[:, 1]
+    )
 
-    threshold_results = []
+    test_metrics = calculate_metrics(
+        y_test,
+        test_probabilities,
+        SELECTED_THRESHOLD,
+    )
 
-    for threshold in np.arange(0.10, 0.51, 0.01):
+    test_predictions = (
+        test_probabilities >= SELECTED_THRESHOLD
+    ).astype(int)
 
-        y_pred = (
-            val_probabilities >= threshold
-        ).astype(int)
+    print("\nTest metrics")
+    print("------------")
 
-        tn, fp, fn, tp = confusion_matrix(
-            y_val,
-            y_pred,
-        ).ravel()
+    for key, value in test_metrics.items():
+        print(f"{key}: {value}")
 
-        precision = precision_score(
-            y_val,
-            y_pred,
-            zero_division=0,
+    print("\nTest classification report:")
+    print(
+        classification_report(
+            y_test,
+            test_predictions,
+            digits=4,
         )
+    )
 
-        recall = recall_score(
-            y_val,
-            y_pred,
-            zero_division=0,
+    print("\nTest confusion matrix:")
+    print(
+        confusion_matrix(
+            y_test,
+            test_predictions,
         )
+    )
 
-        f1 = f1_score(
-            y_val,
-            y_pred,
-            zero_division=0,
-        )
+    # ---------------------------------------------------------
+    # Save model
+    # ---------------------------------------------------------
 
-        threshold_results.append(
-            {
-                "threshold": round(float(threshold), 2),
-                "precision": precision,
-                "recall": recall,
-                "f1": f1,
-                "false_positives": fp,
-                "false_negatives": fn,
-                "true_positives": tp,
-                "true_negatives": tn,
-            }
-        )
+    MODEL_PATH.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
 
+    joblib.dump(
+        model,
+        MODEL_PATH,
+    )
 
-    threshold_df = pd.DataFrame(threshold_results)
+    # ---------------------------------------------------------
+    # Save metadata
+    # ---------------------------------------------------------
 
-
-    # Only consider thresholds satisfying recall >= 80%
-    eligible = threshold_df[
-        threshold_df["recall"] >= 0.80
-    ]
-
-
-    if eligible.empty:
-        print(
-            "\nNo threshold achieved recall >= 0.80"
-        )
-
-    else:
-
-        # Minimize false positives.
-        # If tied, prefer higher F1.
-        best_threshold = eligible.sort_values(
-            by=[
-                "false_positives",
-                "f1",
-            ],
-            ascending=[
-                True,
-                False,
-            ],
-        ).iloc[0]
-
-        print("\nThreshold tuning results:")
-        print(
-            threshold_df[
-                [
-                    "threshold",
-                    "precision",
-                    "recall",
-                    "f1",
-                    "false_positives",
-                    "false_negatives",
-                ]
-            ].to_string(index=False)
-        )
-
-        print("\nSelected threshold:")
-        print(best_threshold)
-
-        threshold = 0.5
-
-        y_val_pred = (
-            val_probabilities >= threshold
-        ).astype(int)
-
-        print("\nValidation metrics:")
-        print(
-            classification_report(
-                y_val,
-                y_val_pred,
-                digits=4,
-            )
-        )
-
-        print("Confusion matrix:")
-        print(
-            confusion_matrix(
-                y_val,
-                y_val_pred,
-            )
-        )
-
-        print(
-            "Precision:",
-            precision_score(
-                y_val,
-                y_val_pred,
-                zero_division=0,
+    metadata = {
+        "model_name": "Production Fraud Detection Model",
+        "model_type": "XGBClassifier",
+        "model_version": "2.0",
+        "data_type": "synthetic_demonstration_data",
+        "random_state": RANDOM_STATE,
+        "features": FEATURES,
+        "threshold": SELECTED_THRESHOLD,
+        "training": {
+            "n_estimators": 300,
+            "max_depth": 5,
+            "learning_rate": 0.05,
+            "subsample": 0.8,
+            "colsample_bytree": 0.8,
+            "scale_pos_weight": float(
+                scale_pos_weight
             ),
+        },
+        "threshold_selection": {
+            "dataset": "validation",
+            "criterion": (
+                "Recall >= 0.80 while "
+                "minimizing false positives"
+            ),
+            "selected_threshold": SELECTED_THRESHOLD,
+        },
+        "validation_metrics": val_metrics,
+        "test_metrics": test_metrics,
+    }
+
+    with open(
+        METADATA_PATH,
+        "w",
+    ) as f:
+        import json
+
+        json.dump(
+            metadata,
+            f,
+            indent=2,
         )
 
-        print(
-            "Recall:",
-            recall_score(
-                y_val,
-                y_val_pred,
-                zero_division=0,
-            ),
-        )
+    print(
+        f"\nModel saved to: {MODEL_PATH}"
+    )
 
-        print(
-            "F1:",
-            f1_score(
-                y_val,
-                y_val_pred,
-                zero_division=0,
-            ),
-        )
-
-        print(
-            "ROC-AUC:",
-            roc_auc_score(
-                y_val,
-                val_probabilities,
-            ),
-        )
-
-        print(
-            "PR-AUC:",
-            average_precision_score(
-                y_val,
-                val_probabilities,
-            ),
-        )
+    print(
+        f"Metadata saved to: {METADATA_PATH}"
+    )
 
 
 if __name__ == "__main__":

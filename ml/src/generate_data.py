@@ -55,26 +55,41 @@ def generate_raw_transactions(
             sigma=0.45,
         )
 
-        # Most accounts have normal activity.
-        # A smaller group is more transaction-active.
         transaction_activity = rng.choice(
-            ["normal", "high"],
-            p=[0.85, 0.15],
+            ["low", "normal", "high"],
+            p=[0.20, 0.65, 0.15],
         )
 
         online_preference = rng.uniform(
-            0.5,
+            0.50,
             0.95,
+        )
+
+        # Typical number of transactions per day.
+        if transaction_activity == "low":
+            daily_activity = rng.uniform(0.5, 1.5)
+
+        elif transaction_activity == "normal":
+            daily_activity = rng.uniform(1.5, 4.0)
+
+        else:
+            daily_activity = rng.uniform(4.0, 8.0)
+
+        # Account's normal transaction-hour preference.
+        preferred_hour = int(
+            rng.integers(7, 23)
         )
 
         account_profiles[account_id] = {
             "average_amount": average_amount,
             "transaction_activity": transaction_activity,
             "online_preference": online_preference,
+            "daily_activity": daily_activity,
+            "preferred_hour": preferred_hour,
         }
 
     # ---------------------------------------------------------
-    # Generate transactions
+    # Generate normal transactions
     # ---------------------------------------------------------
 
     rows = []
@@ -91,15 +106,66 @@ def generate_raw_transactions(
         # Timestamp
         # -----------------------------------------------------
 
+        day_offset = int(
+            rng.integers(
+                0,
+                60,
+            )
+        )
+
+        preferred_hour = profile["preferred_hour"]
+
+        # Most transactions happen near the account's
+        # normal operating hours.
+        if rng.random() < 0.85:
+
+            hour = int(
+                np.clip(
+                    rng.normal(
+                        preferred_hour,
+                        3,
+                    ),
+                    0,
+                    23,
+                )
+            )
+
+        else:
+
+            hour = int(
+                rng.integers(
+                    0,
+                    24,
+                )
+            )
+
+        minute = int(
+            rng.integers(
+                0,
+                60,
+            )
+        )
+
+        second = int(
+            rng.integers(
+                0,
+                60,
+            )
+        )
+
         timestamp = (
             start_date
             + pd.Timedelta(
-                seconds=int(
-                    rng.integers(
-                        0,
-                        60 * 24 * 60 * 60,
-                    )
-                )
+                days=day_offset,
+            )
+            + pd.Timedelta(
+                hours=hour,
+            )
+            + pd.Timedelta(
+                minutes=minute,
+            )
+            + pd.Timedelta(
+                seconds=second,
             )
         )
 
@@ -108,8 +174,10 @@ def generate_raw_transactions(
         # -----------------------------------------------------
 
         amount = rng.lognormal(
-            mean=np.log(profile["average_amount"]),
-            sigma=0.65,
+            mean=np.log(
+                profile["average_amount"]
+            ),
+            sigma=0.45,
         )
 
         # -----------------------------------------------------
@@ -117,9 +185,10 @@ def generate_raw_transactions(
         # -----------------------------------------------------
 
         if rng.random() < 0.025:
+
             amount *= rng.uniform(
-                5,
-                12,
+                4,
+                10,
             )
 
         amount = round(
@@ -168,54 +237,69 @@ def generate_raw_transactions(
     df = pd.DataFrame(rows)
 
     # ---------------------------------------------------------
-    # Create account-level transaction bursts
+    # Create suspicious transaction bursts
     # ---------------------------------------------------------
     #
-    # Select a small number of accounts that occasionally
-    # generate several transactions close together.
+    # A subset of accounts occasionally generates a burst
+    # of transactions within a short time window.
     #
-    # This creates realistic variation in transaction velocity.
+    # Some burst transactions are also unusually large.
     # ---------------------------------------------------------
 
     burst_accounts = rng.choice(
         account_ids,
-        size=max(1, int(num_accounts * 0.10)),
+        size=max(
+            1,
+            int(num_accounts * 0.12),
+        ),
         replace=False,
-    )
-
-    burst_account_set = set(
-        burst_accounts
     )
 
     burst_rows = []
 
     for account_id in burst_accounts:
 
-        # Around 10 burst events across the dataset.
-        for _ in range(10):
+        profile = account_profiles[
+            account_id
+        ]
+
+        # Each account gets several burst events.
+        for _ in range(8):
 
             base_timestamp = (
                 start_date
                 + pd.Timedelta(
-                    seconds=int(
+                    days=int(
                         rng.integers(
                             0,
-                            60 * 24 * 60 * 60,
+                            60,
+                        )
+                    )
+                )
+                + pd.Timedelta(
+                    hours=int(
+                        rng.integers(
+                            0,
+                            24,
+                        )
+                    )
+                )
+                + pd.Timedelta(
+                    minutes=int(
+                        rng.integers(
+                            0,
+                            60,
                         )
                     )
                 )
             )
 
-            profile = account_profiles[
-                account_id
-            ]
-
-            # Generate 3–7 transactions within
-            # a short period.
+            # Larger burst sizes create stronger
+            # transaction-velocity patterns.
             burst_size = int(
                 rng.integers(
-                    3,
-                    8,
+                    5,
+                    11,
                 )
             )
 
@@ -227,7 +311,7 @@ def generate_raw_transactions(
                         minutes=int(
                             rng.integers(
                                 1,
-                                180,
+                                90,
                             )
                         )
                     )
@@ -237,11 +321,13 @@ def generate_raw_transactions(
                     mean=np.log(
                         profile["average_amount"]
                     ),
-                    sigma=0.65,
+                    sigma=0.50,
                 )
 
-                # A few burst transactions are unusually large.
-                if rng.random() < 0.15:
+                # Some burst transactions are
+                # significantly larger than normal.
+                if rng.random() < 0.25:
+
                     amount *= rng.uniform(
                         3,
                         8,
@@ -252,9 +338,16 @@ def generate_raw_transactions(
                     2,
                 )
 
+                # Fraud-like bursts are more likely to
+                # occur online.
+                burst_online_probability = min(
+                    0.98,
+                    profile["online_preference"] + 0.10,
+                )
+
                 is_online = (
                     rng.random()
-                    < profile["online_preference"]
+                    < burst_online_probability
                 )
 
                 burst_rows.append(
@@ -277,22 +370,32 @@ def generate_raw_transactions(
                 )
 
     if burst_rows:
+
         df = pd.concat(
             [
                 df,
-                pd.DataFrame(burst_rows),
+                pd.DataFrame(
+                    burst_rows
+                ),
             ],
             ignore_index=True,
         )
 
-    # Keep exactly the requested number of transactions.
+    # ---------------------------------------------------------
+    # Keep exactly requested number of transactions
+    # ---------------------------------------------------------
+
     df = (
         df.sample(
             n=num_transactions,
             random_state=RANDOM_STATE,
         )
-        .sort_values("timestamp")
-        .reset_index(drop=True)
+        .sort_values(
+            "timestamp"
+        )
+        .reset_index(
+            drop=True
+        )
     )
 
     return df
@@ -317,6 +420,13 @@ def main():
 
     print("\nShape:")
     print(df.shape)
+
+    print("\nDate range:")
+    print(
+        df["timestamp"].min(),
+        "->",
+        df["timestamp"].max(),
+    )
 
     print("\nSample:")
     print(df.head())

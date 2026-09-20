@@ -9,6 +9,8 @@ from app.exceptions import (
     TransactionAccessDeniedError
 )
 from app.models.transaction import TransactionStatus
+from datetime import datetime, timezone
+
 
 class TransactionService:
     def __init__(self, repository: TransactionRepository, 
@@ -18,7 +20,11 @@ class TransactionService:
         self.account_repository = account_repository
         self.fraud_service = fraud_service
 
-    def create_transaction(self, transaction: TransactionCreate, user_id: UUID):
+    def create_transaction(
+        self,
+        transaction: TransactionCreate,
+        user_id: UUID
+    ):
         account = self.account_repository.get_by_id(
             transaction.account_id
         )
@@ -31,33 +37,52 @@ class TransactionService:
                 "You do not have access to this account"
             )
 
-        
         if transaction.amount > account.balance:
             raise InsufficientBalanceError(
-            "Insufficient account balance"
+                "Insufficient account balance"
             )
-        
-        fraud_result = self.fraud_service.evaluate_transaction(
-            transaction.amount,
-            transaction.transaction_type
+
+        # Timestamp for the transaction being evaluated.
+        transaction_timestamp = datetime.now(timezone.utc)
+
+        # Retrieve only previous transactions for this account.
+        historical_transactions = (
+            self.repository.get_transaction_history(
+                transaction.account_id
+            )
         )
+
+        # Run ML fraud detection using historical account behavior.
+        fraud_result = self.fraud_service.evaluate_transaction(
+            amount=transaction.amount,
+            transaction_type=transaction.transaction_type,
+            timestamp=transaction_timestamp,
+            historical_transactions=historical_transactions,
+        )
+
         fraud_decision = fraud_result["fraud_decision"]
-        
 
         if fraud_decision == "approved":
             status = TransactionStatus.APPROVED
-            # Deduct money only when transaction is approved
+
+            # Deduct money only when transaction is approved.
             account.balance -= transaction.amount
 
         elif fraud_decision == "review":
             status = TransactionStatus.REVIEW
+
         elif fraud_decision == "blocked":
             status = TransactionStatus.BLOCKED
+
         else:
             status = TransactionStatus.PENDING
 
-        
-        return self.repository.create(transaction, fraud_result, status)
+        return self.repository.create(
+            transaction,
+            fraud_result,
+            status,
+            timestamp=transaction_timestamp,
+        )
 
     def get_all_transactions(self):
         return self.repository.get_all()

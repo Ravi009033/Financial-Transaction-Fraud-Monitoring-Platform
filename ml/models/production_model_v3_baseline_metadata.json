@@ -1,0 +1,58 @@
+{
+  "model_name": "Production Fraud Detection Model v3",
+  "model_type": "XGBClassifier",
+  "model_version": "3.0",
+  "split_strategy": "time_based",
+  "train_ratio": 0.7,
+  "validation_ratio": 0.15,
+  "test_ratio": 0.15,
+  "features": [
+    "amount",
+    "transaction_hour",
+    "transaction_day_of_week",
+    "is_weekend",
+    "is_online",
+    "account_transaction_count",
+    "account_avg_amount",
+    "account_max_amount",
+    "amount_vs_avg_ratio",
+    "transactions_last_24h"
+  ],
+  "training": {
+    "random_state": 42,
+    "n_estimators": 300,
+    "max_depth": 5,
+    "learning_rate": 0.05,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "scale_pos_weight": 34.98971722365039
+  },
+  "threshold_selection": {
+    "dataset": "validation",
+    "criterion": "Maximum F1 score on validation data",
+    "selected_threshold": 0.5
+  },
+  "validation_metrics": {
+    "threshold": 0.5,
+    "precision": 0.18461538461538463,
+    "recall": 0.3116883116883117,
+    "f1": 0.2318840579710145,
+    "false_positives": 106,
+    "false_negatives": 53,
+    "true_positives": 24,
+    "true_negatives": 2817,
+    "roc_auc": 0.6978464573401284,
+    "pr_auc": 0.16267403351605997
+  },
+  "test_metrics": {
+    "precision": 0.2074074074074074,
+    "recall": 0.3111111111111111,
+    "f1": 0.24888888888888888,
+    "roc_auc": 0.6788812523864071,
+    "pr_auc": 0.19178365113193688,
+    "true_positives": 28,
+    "true_negatives": 2803,
+    "false_positives": 107,
+    "false_negatives": 62
+  }
+}

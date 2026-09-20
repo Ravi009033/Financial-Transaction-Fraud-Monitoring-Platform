@@ -151,9 +151,9 @@ def test_create_transaction_missing_amount(
 # Fraud Detection
 # ============================================================
 
-def test_create_approved_transaction(
+def test_create_transaction_with_ml_fraud_prediction(
     auth_client,
-    test_account
+    test_account,
 ):
     response = auth_client.post(
         "/transactions/",
@@ -162,66 +162,30 @@ def test_create_approved_transaction(
             "amount": 100,
             "merchant": "Amazon",
             "location": "Delhi",
-            "transaction_type": "offline"
-        }
+            "transaction_type": "offline",
+        },
     )
 
     assert response.status_code == 200
 
     data = response.json()
 
-    assert data["status"] == "approved"
-    assert data["fraud_decision"] == "approved"
-    assert float(data["fraud_score"]) == 0.0
+    assert data["account_id"] == str(test_account.id)
 
+    assert data["fraud_score"] is not None
+    assert 0 <= float(data["fraud_score"]) <= 1
 
-def test_create_review_transaction(
-    auth_client,
-    fraud_test_account
-):
-    response = auth_client.post(
-        "/transactions/",
-        json={
-            "account_id": str(fraud_test_account.id),
-            "amount": 50000,
-            "merchant": "HighValue Store",
-            "location": "Delhi",
-            "transaction_type": "offline"
-        }
-    )
+    assert data["fraud_decision"] in {
+        "approved",
+        "review",
+        "blocked",
+    }
 
-    assert response.status_code == 200
-
-    data = response.json()
-
-    assert data["status"] == "review"
-    assert data["fraud_decision"] == "review"
-    assert float(data["fraud_score"]) == 0.4
-
-
-def test_create_blocked_transaction(
-    auth_client,
-    fraud_test_account
-):
-    response = auth_client.post(
-        "/transactions/",
-        json={
-            "account_id": str(fraud_test_account.id),
-            "amount": 100000,
-            "merchant": "HighRisk Merchant",
-            "location": "Delhi",
-            "transaction_type": "online"
-        }
-    )
-
-    assert response.status_code == 200
-
-    data = response.json()
-
-    assert data["status"] == "blocked"
-    assert data["fraud_decision"] == "blocked"
-    assert float(data["fraud_score"]) == 0.7
-
+    assert data["status"] in {
+        "approved",
+        "review",
+        "blocked",
+    }
 
 # ============================================================
 # GET /transactions/
@@ -399,40 +363,20 @@ def test_update_nonexistent_transaction(auth_client):
 
 def test_update_processed_transaction(
     auth_client,
-    test_account
+    processed_transaction,
 ):
-    # Create an approved transaction first.
-    create_response = auth_client.post(
-        "/transactions/",
-        json={
-            "account_id": str(test_account.id),
-            "amount": 100,
-            "merchant": "Processed Merchant",
-            "location": "Delhi",
-            "transaction_type": "offline"
-        }
-    )
-
-    assert create_response.status_code == 200
-
-    transaction_id = create_response.json()["id"]
-
-    assert create_response.json()["status"] == "approved"
-
-    # Processed transaction must not be editable.
     response = auth_client.put(
-        f"/transactions/{transaction_id}",
+        f"/transactions/{processed_transaction.id}",
         json={
             "merchant": "Updated Merchant",
-            "location": "Mumbai"
-        }
+            "location": "Mumbai",
+        },
     )
 
     assert response.status_code == 409
     assert response.json()["detail"] == (
         "Processed transactions cannot be modified"
     )
-
 
 # ============================================================
 # DELETE /transactions/{transaction_id}
