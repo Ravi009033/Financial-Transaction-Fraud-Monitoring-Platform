@@ -36,6 +36,8 @@ with open(METADATA_PATH, "r") as f:
 
 FEATURES = metadata["features"]
 THRESHOLD = metadata["threshold_selection"]["selected_threshold"]
+MODEL_NAME = metadata["model_name"]
+MODEL_VERSION = metadata["model_version"]
 
 
 # --------------------------------------------------
@@ -79,4 +81,6 @@ def predict_production_fraud(features: dict) -> dict:
         "fraud_score": float(fraud_score),
         "fraud_decision": fraud_decision,
         "threshold": THRESHOLD,
+        "model_name": MODEL_NAME,
+        "model_version": MODEL_VERSION,
     }

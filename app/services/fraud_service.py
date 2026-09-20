@@ -1,4 +1,5 @@
 from decimal import Decimal
+from app.core.config import settings
 import pandas as pd
 
 from ml.src.features import build_transaction_features
@@ -58,17 +59,15 @@ class FraudDetectionService:
         return {
             "fraud_score": fraud_score,
             "fraud_decision": fraud_decision,
+            "model_version": prediction["model_version"],
+            "model_threshold": prediction["threshold"],
         }
 
-    def make_decision(
-        self,
-        score: Decimal
-    ) -> str:
-
-        if score >= Decimal("0.70"):
+    def make_decision(self, score: Decimal) -> str:
+        if score >= Decimal(str(settings.FRAUD_BLOCK_THRESHOLD)):
             return "blocked"
 
-        elif score >= Decimal("0.33"):
+        if score >= Decimal(str(settings.FRAUD_REVIEW_THRESHOLD)):
             return "review"
 
         return "approved"

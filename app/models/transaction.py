@@ -46,15 +46,31 @@ class Transaction(Base):
         default=TransactionStatus.PENDING,
         nullable=False
     )
-    fraud_score: Mapped[Decimal | None] = mapped_column(Numeric(precision=5, scale=4), nullable=True) 
-    fraud_decision: Mapped[str | None] = mapped_column(String(50), nullable=True) 
+    fraud_score: Mapped[Decimal | None] = mapped_column(
+        Numeric(precision=5, scale=4), 
+        nullable=True
+    ) 
+    fraud_decision: Mapped[str | None] = mapped_column(
+        String(50), 
+        nullable=True
+    ) 
     created_at: Mapped[datetime] = mapped_column( 
-            DateTime(timezone=True), 
-            default=lambda: datetime.now(timezone.utc),
-            nullable=False
-        )
+        DateTime(timezone=True), 
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
 
     account: Mapped["Account"] = relationship(
-                                "Account",
-                                back_populates="transactions"
-                            )
+        "Account",
+        back_populates="transactions"
+    )
+
+    model_version: Mapped[str | None] = mapped_column(
+        String(50),
+        nullable=True,
+    )
+
+    model_threshold: Mapped[Decimal | None] = mapped_column(
+        Numeric(5, 4),
+        nullable=True,
+    )

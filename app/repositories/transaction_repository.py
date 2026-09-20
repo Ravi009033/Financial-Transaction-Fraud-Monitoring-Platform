@@ -23,6 +23,8 @@ class TransactionRepository:
             timestamp=timestamp,
             fraud_score=fraud_result["fraud_score"],
             fraud_decision=fraud_result["fraud_decision"],
+            model_version=fraud_result.get("model_version"),
+            model_threshold=fraud_result.get("model_threshold"),
             status=status,
         )
 

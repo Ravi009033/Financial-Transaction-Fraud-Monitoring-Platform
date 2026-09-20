@@ -61,3 +61,20 @@ def test_high_value_online_transaction():
         "review",
         "blocked",
     }
+
+def test_make_decision_approved():
+    service = FraudDetectionService()
+
+    assert service.make_decision(Decimal("0.20")) == "approved"
+
+
+def test_make_decision_review():
+    service = FraudDetectionService()
+
+    assert service.make_decision(Decimal("0.50")) == "review"
+
+
+def test_make_decision_blocked():
+    service = FraudDetectionService()
+
+    assert service.make_decision(Decimal("0.80")) == "blocked"

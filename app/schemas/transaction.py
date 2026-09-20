@@ -29,6 +29,8 @@ class TransactionResponse(BaseModel):
     status: str
     fraud_score: Decimal | None
     fraud_decision: str | None
+    model_version: str | None
+    model_threshold: Decimal | None
     created_at: datetime
 
     model_config = {
