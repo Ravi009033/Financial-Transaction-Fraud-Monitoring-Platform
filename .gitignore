@@ -72,3 +72,10 @@ dist/
 # =========================
 
 .ipynb_checkpoints/
+
+# Generated ML datasets
+ml/data/production_transactions_raw.csv
+ml/data/production_training_data.csv
+
+# Raw Kaggle dataset
+ml/data/creditcard.csv

@@ -1,0 +1,70 @@
+{
+    "model_name": "XGBoost Fraud Detection Model",
+    "model_type": "XGBClassifier",
+    "model_version": "1.0",
+    "threshold": 0.33,
+    "features": [
+        "Time",
+        "V1",
+        "V2",
+        "V3",
+        "V4",
+        "V5",
+        "V6",
+        "V7",
+        "V8",
+        "V9",
+        "V10",
+        "V11",
+        "V12",
+        "V13",
+        "V14",
+        "V15",
+        "V16",
+        "V17",
+        "V18",
+        "V19",
+        "V20",
+        "V21",
+        "V22",
+        "V23",
+        "V24",
+        "V25",
+        "V26",
+        "V27",
+        "V28",
+        "Amount"
+    ],
+    "training": {
+        "random_state": 42,
+        "n_estimators": 300,
+        "max_depth": 5,
+        "learning_rate": 0.05,
+        "subsample": 0.8,
+        "colsample_bytree": 0.8,
+        "scale_pos_weight": 599.02416918429
+    },
+    "validation_metrics": {
+        "precision": 0.865672,
+        "recall": 0.816901,
+        "f1": 0.84058,
+        "false_positives": 9,
+        "false_negatives": 13
+    },
+    "test_metrics": {
+        "precision": 0.76,
+        "recall": 0.8028169014,
+        "f1": 0.7808219178,
+        "roc_auc": 0.9656821081,
+        "pr_auc": 0.8019045742,
+        "true_positives": 57,
+        "true_negatives": 42470,
+        "false_positives": 18,
+        "false_negatives": 14
+    },
+    "threshold_selection": {
+        "dataset": "validation",
+        "criterion": "Recall >= 0.80 while minimizing false positives",
+        "selected_threshold": 0.33
+    }
+}
