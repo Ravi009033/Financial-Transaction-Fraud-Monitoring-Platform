@@ -8,6 +8,8 @@ from app.api.users import router as users_router
 from app.api.accounts import router as account_router
 from app.api.transactions import router as transaction_router
 from app.api.auth import router as auth_router
+from app.api.ml import router as ml_router
+from app.api.dashboard import router as dashboard_router
 from sqlalchemy import text
 from app.db.database import engine
 from app.schemas.error import ErrorResponse
@@ -124,6 +126,8 @@ app.include_router(transaction_router)
 app.include_router(users_router)
 app.include_router(account_router)
 app.include_router(auth_router)
+app.include_router(ml_router)
+app.include_router(dashboard_router)
 
 @app.get("/")
 def health_check():

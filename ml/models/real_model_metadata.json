@@ -1,0 +1,99 @@
+{
+  "model_name": "Real Credit Card Fraud XGBoost Model",
+  "model_type": "XGBClassifier",
+  "model_version": "1.0",
+  "dataset": {
+    "name": "Credit Card Fraud Detection",
+    "source": "Kaggle",
+    "rows_after_deduplication": 283726,
+    "features": [
+      "Time",
+      "V1",
+      "V2",
+      "V3",
+      "V4",
+      "V5",
+      "V6",
+      "V7",
+      "V8",
+      "V9",
+      "V10",
+      "V11",
+      "V12",
+      "V13",
+      "V14",
+      "V15",
+      "V16",
+      "V17",
+      "V18",
+      "V19",
+      "V20",
+      "V21",
+      "V22",
+      "V23",
+      "V24",
+      "V25",
+      "V26",
+      "V27",
+      "V28",
+      "Amount"
+    ],
+    "target": "Class"
+  },
+  "training": {
+    "random_state": 42,
+    "n_estimators": 300,
+    "max_depth": 5,
+    "learning_rate": 0.05,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "scale_pos_weight": 599.02416918429
+  },
+  "split": {
+    "train_size": 198608,
+    "validation_size": 42559,
+    "test_size": 42559
+  },
+  "threshold_selection": {
+    "criterion": "Recall >= 0.80 while minimizing validation false positives",
+    "selected_threshold": 0.33,
+    "validation_result": {
+      "threshold": 0.33,
+      "precision": 0.8656716417910447,
+      "recall": 0.8169014084507042,
+      "f1": 0.8405797101449275,
+      "false_positives": 9,
+      "false_negatives": 13,
+      "true_positives": 58,
+      "true_negatives": 42479
+    }
+  },
+  "validation_metrics": {
+    "precision": 0.8656716417910447,
+    "recall": 0.8169014084507042,
+    "f1": 0.8405797101449275,
+    "roc_auc": 0.9725828137721073,
+    "pr_auc": 0.8453351515051,
+    "true_positives": 58,
+    "true_negatives": 42479,
+    "false_positives": 9,
+    "false_negatives": 13
+  },
+  "test_metrics": {
+    "precision": 0.76,
+    "recall": 0.8028169014084507,
+    "f1": 0.7808219178082192,
+    "roc_auc": 0.9656821080881828,
+    "pr_auc": 0.8019045741746188,
+    "true_positives": 57,
+    "true_negatives": 42470,
+    "false_positives": 18,
+    "false_negatives": 14
+  },
+  "artifacts": {
+    "roc_curve": "real_roc_curve.png",
+    "pr_curve": "real_pr_curve.png",
+    "confusion_matrix": "real_confusion_matrix.png",
+    "shap_summary": "real_shap_summary.png"
+  }
+}

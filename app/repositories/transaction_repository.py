@@ -1,7 +1,12 @@
+from decimal import Decimal
+
 from sqlalchemy.orm import Session
-from app.models.transaction import Transaction
+from app.models.transaction import Transaction, TransactionStatus
 from app.schemas.transaction import TransactionCreate, TransactionUpdate
 from uuid import UUID
+from sqlalchemy import func, Integer, cast, Date
+from app.models.account import Account
+
 
 class TransactionRepository:
     def __init__(self, db: Session):
@@ -124,4 +129,119 @@ class TransactionRepository:
             )
             .all()
         )
-    
+
+    def get_dashboard_summary(self, user_id):
+        result = (
+            self.db.query(
+                func.count(Transaction.id).label("total_transactions"),
+                func.coalesce(func.sum(Transaction.amount), 0).label("total_amount"),
+                func.sum(
+                    func.cast(
+                        Transaction.status == TransactionStatus.APPROVED,
+                        Integer,
+                    )
+                ).label("approved_transactions"),
+                func.sum(
+                    func.cast(
+                        Transaction.status == TransactionStatus.REVIEW,
+                        Integer,
+                    )
+                ).label("review_transactions"),
+                func.sum(
+                    func.cast(
+                        Transaction.status == TransactionStatus.BLOCKED,
+                        Integer,
+                    )
+                ).label("blocked_transactions"),
+                func.sum(
+                    func.cast(
+                        Transaction.status == TransactionStatus.PENDING,
+                        Integer,
+                    )
+                ).label("pending_transactions"),
+            )
+            .join(Account, Transaction.account_id == Account.id)
+            .filter(Account.user_id == user_id)
+            .one()
+        )
+
+        fraud_count = (
+            self.db.query(func.count(Transaction.id))
+            .join(Account, Transaction.account_id == Account.id)
+            .filter(
+                Account.user_id == user_id,
+                Transaction.fraud_decision == "fraud",
+            )
+            .scalar()
+        )
+
+        total_transactions = result.total_transactions or 0
+
+        fraud_rate = (
+            (fraud_count / total_transactions) * 100
+            if total_transactions > 0
+            else 0.0
+        )
+
+        return {
+            "total_transactions": total_transactions,
+            "total_amount": result.total_amount or Decimal("0.00"),
+            "approved_transactions": result.approved_transactions or 0,
+            "review_transactions": result.review_transactions or 0,
+            "blocked_transactions": result.blocked_transactions or 0,
+            "pending_transactions": result.pending_transactions or 0,
+            "fraud_transactions": fraud_count or 0,
+            "fraud_rate": fraud_rate,
+        }
+
+    def get_transaction_trends(self, user_id):
+        results = (
+            self.db.query(
+                cast(Transaction.timestamp, Date).label("date"),
+                func.count(Transaction.id).label("transactions"),
+                func.coalesce(func.sum(Transaction.amount), 0).label("amount"),
+            )
+            .join(
+                Account,
+                Transaction.account_id == Account.id,
+            )
+            .filter(Account.user_id == user_id)
+            .group_by(cast(Transaction.timestamp, Date))
+            .order_by(cast(Transaction.timestamp, Date))
+            .all()
+        )
+
+        return [
+            {
+                "date": row.date,
+                "transactions": row.transactions,
+                "amount": row.amount,
+            }
+            for row in results
+        ]
+
+    def get_fraud_distribution(self, user_id):
+        results = (
+            self.db.query(
+                Transaction.status.label("status"),
+                func.count(Transaction.id).label("count"),
+            )
+            .join(
+                Account,
+                Transaction.account_id == Account.id,
+            )
+            .filter(Account.user_id == user_id)
+            .group_by(Transaction.status)
+            .order_by(Transaction.status)
+            .all()
+        )
+
+        return [
+            {
+                "status": row.status.value
+                if hasattr(row.status, "value")
+                else row.status,
+                "count": row.count,
+            }
+            for row in results
+        ]
