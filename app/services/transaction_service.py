@@ -84,11 +84,29 @@ class TransactionService:
             timestamp=transaction_timestamp,
         )
 
+    def get_transaction(self, transaction_id):
+        return self.repository.get_by_id(transaction_id)
+
     def get_all_transactions(self):
         return self.repository.get_all()
 
-    def get_transaction(self, transaction_id: UUID):
-        return self.repository.get_by_id(transaction_id)
+    def get_transactions(
+        self,
+        user_id,
+        page: int = 1,
+        page_size: int = 10,
+        status: TransactionStatus | None = None,
+    ):
+        transactions, total = (
+            self.repository.get_all(
+                user_id=user_id,
+                page=page,
+                page_size=page_size,
+                status=status,
+            )
+        )
+
+        return transactions, total
 
     def get_transactions_by_account(self, account_id: UUID):
         return self.repository.get_by_account(account_id)

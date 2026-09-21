@@ -43,8 +43,35 @@ class TransactionRepository:
             self.db.rollback()
             raise
 
-    def get_all(self):
-            return self.db.query(Transaction).all()
+    def get_all(
+        self,
+        user_id,
+        page: int = 1,
+        page_size: int = 10,
+        status: TransactionStatus | None = None,
+    ):
+        query = (
+            self.db.query(Transaction)
+            .join(Account, Transaction.account_id == Account.id)
+            .filter(Account.user_id == user_id)
+        )
+
+        if status is not None:
+            query = query.filter(
+                Transaction.status == status
+            )
+
+        total = query.count()
+
+        transactions = (
+            query
+            .order_by(Transaction.timestamp.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+            .all()
+        )
+
+        return transactions, total
 
     def get_by_id(self, transaction_id: UUID):
         return (
@@ -134,25 +161,32 @@ class TransactionRepository:
         result = (
             self.db.query(
                 func.count(Transaction.id).label("total_transactions"),
-                func.coalesce(func.sum(Transaction.amount), 0).label("total_amount"),
+                func.coalesce(
+                    func.sum(Transaction.amount),
+                    0,
+                ).label("total_amount"),
+
                 func.sum(
                     func.cast(
                         Transaction.status == TransactionStatus.APPROVED,
                         Integer,
                     )
                 ).label("approved_transactions"),
+
                 func.sum(
                     func.cast(
                         Transaction.status == TransactionStatus.REVIEW,
                         Integer,
                     )
                 ).label("review_transactions"),
+
                 func.sum(
                     func.cast(
                         Transaction.status == TransactionStatus.BLOCKED,
                         Integer,
                     )
                 ).label("blocked_transactions"),
+
                 func.sum(
                     func.cast(
                         Transaction.status == TransactionStatus.PENDING,
@@ -160,25 +194,40 @@ class TransactionRepository:
                     )
                 ).label("pending_transactions"),
             )
-            .join(Account, Transaction.account_id == Account.id)
+            .join(
+                Account,
+                Transaction.account_id == Account.id,
+            )
             .filter(Account.user_id == user_id)
             .one()
         )
 
-        fraud_count = (
-            self.db.query(func.count(Transaction.id))
-            .join(Account, Transaction.account_id == Account.id)
-            .filter(
-                Account.user_id == user_id,
-                Transaction.fraud_decision == "fraud",
-            )
-            .scalar()
-        )
-
         total_transactions = result.total_transactions or 0
 
+        approved_transactions = (
+            result.approved_transactions or 0
+        )
+
+        review_transactions = (
+            result.review_transactions or 0
+        )
+
+        blocked_transactions = (
+            result.blocked_transactions or 0
+        )
+
+        pending_transactions = (
+            result.pending_transactions or 0
+        )
+
+        # In the application fraud workflow,
+        # REVIEW and BLOCKED represent suspicious transactions.
+        fraud_transactions = (
+            review_transactions + blocked_transactions
+        )
+
         fraud_rate = (
-            (fraud_count / total_transactions) * 100
+            (fraud_transactions / total_transactions) * 100
             if total_transactions > 0
             else 0.0
         )
@@ -186,11 +235,13 @@ class TransactionRepository:
         return {
             "total_transactions": total_transactions,
             "total_amount": result.total_amount or Decimal("0.00"),
-            "approved_transactions": result.approved_transactions or 0,
-            "review_transactions": result.review_transactions or 0,
-            "blocked_transactions": result.blocked_transactions or 0,
-            "pending_transactions": result.pending_transactions or 0,
-            "fraud_transactions": fraud_count or 0,
+
+            "approved_transactions": approved_transactions,
+            "review_transactions": review_transactions,
+            "blocked_transactions": blocked_transactions,
+            "pending_transactions": pending_transactions,
+
+            "fraud_transactions": fraud_transactions,
             "fraud_rate": fraud_rate,
         }
 

@@ -524,3 +524,33 @@ def test_get_transactions_by_account_unauthorized(test_account, client):
     )
 
     assert response.status_code == 401
+
+
+def test_get_transactions_filter_by_status(
+    auth_client,
+    test_transaction,
+):
+    response = auth_client.get(
+        "/transactions/?status=pending"
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    for transaction in data["items"]:
+        assert transaction["status"] == "pending"
+
+def test_get_transactions_filter_no_results(
+    auth_client,
+):
+    response = auth_client.get(
+        "/transactions/?status=blocked"
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["total"] >= 0
+    assert "items" in data

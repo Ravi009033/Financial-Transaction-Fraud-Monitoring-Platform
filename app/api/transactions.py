@@ -6,8 +6,10 @@ from app.schemas.transaction import (
     TransactionCreate, 
     TransactionResponse, 
     TransactionUpdate,
-    PaginatedResponse
+    PaginatedResponse,
+    
 )
+from app.models.transaction import TransactionStatus
 from app.security.dependencies import get_current_user
 from app.services.transaction_service import TransactionService
 from app.services.fraud_service import FraudDetectionService
@@ -86,6 +88,7 @@ def add_transaction(
 def get_transactions(
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
+    status: TransactionStatus | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
