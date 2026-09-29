@@ -85,7 +85,7 @@ When a transaction is created, the system:
                                       ▼                 ▼                 ▼
                                   APPROVED            REVIEW            BLOCKED
 
-
+```
 
 ---
 ✨ Key Features
