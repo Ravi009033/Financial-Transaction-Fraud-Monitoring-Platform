@@ -145,5 +145,35 @@ When a transaction is created, the system:
 - Database integration tests
 - Authentication/authorization tests
 - Isolated PostgreSQL test database
-
+## Deployment
+- Docker
+- Docker Compose
+- PostgreSQL container
+- FastAPI container
+- Streamlit container
+- PostgreSQL health check
+- Automatic Alembic migrations on API startup
+- Environment-based configuration
 ---
+
+# 🔐 Authentication and Authorization
+The application uses JWT-based authentication.
+
+```text
+Login
+  ↓
+Email + Password
+  ↓
+Password Hash Verification
+  ↓
+JWT Access Token
+  ↓
+Authorization: Bearer <token>
+  ↓
+Protected API
+  ↓
+Authenticated User
+  ↓
+Resource Ownership Check
+```
+Users can access only their own accounts and transactions.
