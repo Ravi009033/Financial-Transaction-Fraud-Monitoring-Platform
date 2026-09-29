@@ -177,3 +177,99 @@ Authenticated User
 Resource Ownership Check
 ```
 Users can access only their own accounts and transactions.
+
+# 💳 Transaction Processing
+The transaction workflow is:
+```text
+POST /transactions
+        │
+        ▼
+Request Validation
+        │
+        ▼
+JWT Authentication
+        │
+        ▼
+Account Ownership Check
+        │
+        ▼
+Balance Validation
+        │
+        ▼
+Historical Transaction Retrieval
+        │
+        ▼
+Behavioral Feature Engineering
+        │
+        ▼
+XGBoost Fraud Prediction
+        │
+        ▼
+Fraud Score
+        │
+        ▼
+Business Decision
+        │
+        ├── score < 0.33
+        │       └── APPROVED
+        │
+        ├── 0.33 ≤ score < 0.70
+        │       └── REVIEW
+        │
+        └── score ≥ 0.70
+                └── BLOCKED
+        │
+        ▼
+Persist Transaction
+        │
+        ▼
+Update Account Balance
+(if approved)
+```
+# 📊 Model Explainability
+SHAP is used to understand model behavior.
+The system can analyze which features contributed toward a model prediction.
+```text
+Transaction Features
+        ↓
+XGBoost Prediction
+        ↓
+SHAP
+        ↓
+Feature Contributions
+```
+SHAP explanations describe model contribution and should not be interpreted as causal explanations.
+# 📈 Dashboard
+The Streamlit dashboard provides transaction monitoring and analytics.
+Current dashboard functionality includes:
+Summary
+- Total transactions
+- Total transaction amount
+- Approved transactions
+- Review transactions
+- Blocked transactions
+- Pending transactions
+- Suspicious transactions
+- Suspicious transaction rate
+
+# 🧪 Testing Strategy
+The project uses Pytest with an isolated PostgreSQL test database.
+Examples of tested scenarios:
+- User creation
+- Authentication
+- Invalid credentials
+- Account creation
+- Duplicate account
+- Account authorization
+- Transaction creation
+- Transaction retrieval
+- Transaction update
+- Insufficient balance
+- Unauthorized transaction
+- Processed transaction modification
+- Fraud prediction
+- ML model metadata
+- Missing ML features
+- Dashboard APIs
+- Pagination
+- Transaction status filtering
