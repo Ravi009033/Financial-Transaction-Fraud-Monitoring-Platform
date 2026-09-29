@@ -78,7 +78,71 @@ When a transaction is created, the system:
           │ Accounts           │                        │
           │ Transactions       │                        ▼
           └────────────────────┘                  Fraud Score
+
+
                                                         │
                                       ┌─────────────────┼─────────────────┐
                                       ▼                 ▼                 ▼
                                   APPROVED            REVIEW            BLOCKED
+
+
+
+---
+✨ Key Features
+Backend
+- RESTful APIs using FastAPI
+- Layered architecture
+- User management
+- Account management
+- Transaction CRUD operations
+- JWT authentication
+- Password hashing
+- Resource ownership authorization
+- Pydantic request/response validation
+- Pagination
+- Transaction status filtering
+- Custom exception handling
+- Global exception handling
+- Database transaction management
+Database
+- PostgreSQL
+- SQLAlchemy ORM
+- UUID primary keys
+- Foreign key relationships
+- Unique constraints
+- PostgreSQL ENUM types
+- NUMERIC for financial amounts
+- Alembic database migrations
+Fraud Detection
+- XGBoost
+- Scikit-learn
+- Behavioral feature engineering
+- Historical transaction analysis
+- Fraud probability scoring
+- Threshold-based decisions
+- Class imbalance handling
+- Precision/Recall/F1 evaluation
+- ROC-AUC
+- PR-AUC
+- SHAP explainability
+- Model version metadata
+- Model threshold metadata
+Dashboard
+- Streamlit frontend
+- Dashboard KPIs
+- Transaction trends
+- Fraud/suspicious transaction distribution
+- Transaction filtering
+- Transaction pagination
+- Transaction details
+Testing
+- Pytest
+- Unit tests
+- API tests
+- Service tests
+- ML prediction tests
+- Database integration tests
+- Authentication/authorization tests
+- Isolated PostgreSQL test database
+
+---
