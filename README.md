@@ -87,9 +87,10 @@ When a transaction is created, the system:
 
 ```
 
+
+# ✨ Key Features
 ---
-✨ Key Features
-Backend
+## Backend
 - RESTful APIs using FastAPI
 - Layered architecture
 - User management
@@ -104,7 +105,7 @@ Backend
 - Custom exception handling
 - Global exception handling
 - Database transaction management
-Database
+## Database
 - PostgreSQL
 - SQLAlchemy ORM
 - UUID primary keys
@@ -113,7 +114,7 @@ Database
 - PostgreSQL ENUM types
 - NUMERIC for financial amounts
 - Alembic database migrations
-Fraud Detection
+## Fraud Detection
 - XGBoost
 - Scikit-learn
 - Behavioral feature engineering
@@ -127,7 +128,7 @@ Fraud Detection
 - SHAP explainability
 - Model version metadata
 - Model threshold metadata
-Dashboard
+## Dashboard
 - Streamlit frontend
 - Dashboard KPIs
 - Transaction trends
@@ -135,7 +136,7 @@ Dashboard
 - Transaction filtering
 - Transaction pagination
 - Transaction details
-Testing
+## Testing
 - Pytest
 - Unit tests
 - API tests
